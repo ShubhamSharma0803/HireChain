@@ -1,23 +1,33 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
-/node_modules
+# Dependencies
+node_modules/
 /.pnp
 .pnp.js
 
-# testing
+# React Testing
 /coverage
-
-# production
 /build
 
-# misc
-.DS_Store
+# Python
+backend/venv/
+backend/__pycache__/
+__pycache__/
+*.pyc
+
+# Environment secrets (NEVER commit these)
+.env
+*.env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
+# Hardhat build artifacts
+blockchain/artifacts/
+blockchain/cache/
+
+# Misc
+.DS_Store
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
