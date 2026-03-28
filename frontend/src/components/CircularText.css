@@ -1,0 +1,14 @@
+.circular-text {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transform-origin: center center;
+  font-weight: bold;
+}
+
+.circular-text span {
+  position: absolute;
+  display: inline-block;
+  transform-origin: center center;
+}

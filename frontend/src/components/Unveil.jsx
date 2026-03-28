@@ -2,85 +2,64 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Unveil = ({ onComplete }) => {
-  const [show, setShow] = useState(true);
+  const [stage, setStage] = useState('initial'); // 'initial' -> 'split' -> 'done'
 
   useEffect(() => {
-    // After text finishes scaling + hold, fade the whole veil out
-    const timer = setTimeout(() => {
-      setShow(false);
-      if (onComplete) setTimeout(onComplete, 800);
-    }, 3200); // 0.5s delay + 1.5s text anim + 1.2s hold
-    return () => clearTimeout(timer);
+    // Hold solid for 800ms, then trigger the split
+    const timer1 = setTimeout(() => {
+      setStage('split');
+    }, 800);
+
+    // After the split animation (1.2s), trigger the unmount
+    const timer2 = setTimeout(() => {
+      onComplete();
+    }, 2200);
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+    };
   }, [onComplete]);
 
+  // Curtain variants pushing left/right
+  const leftCurtainVariants = {
+    initial: { x: '0%' },
+    split: { x: '-100%', transition: { duration: 1.2, ease: [0.16, 1, 0.3, 1] } }
+  };
+
+  const rightCurtainVariants = {
+    initial: { x: '0%' },
+    split: { x: '100%', transition: { duration: 1.2, ease: [0.16, 1, 0.3, 1] } }
+  };
+
   return (
-    <AnimatePresence>
-      {show && (
-        <motion.div
-          key="veil"
-          initial={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.8, ease: 'easeInOut' }}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 100,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: '#FFFFFF',
-          }}
-        >
-          {/* Animated company name */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.7 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{
-              delay: 0.5,
-              duration: 1.5,
-              ease: [0.25, 0.46, 0.45, 0.94],
-            }}
-            className="flex flex-col items-center"
-          >
-            {/* Orange dot accent */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.3, duration: 0.6 }}
-              className="w-4 h-4 rounded-full bg-[#FF8131] mb-6"
-            />
-            <h1
-              style={{
-                fontFamily: "'Inter', sans-serif",
-                fontSize: 'clamp(3rem, 8vw, 6rem)',
-                fontWeight: 800,
-                color: '#030D1E',
-                letterSpacing: '-0.03em',
-                lineHeight: 1,
-                margin: 0,
-              }}
-            >
-              HireChain
-            </h1>
-            <motion.p
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 1.6, duration: 0.6 }}
-              style={{
-                fontFamily: "'Inter', sans-serif",
-                fontSize: '1.1rem',
-                color: '#6A737D',
-                fontWeight: 500,
-                marginTop: '1rem',
-                letterSpacing: '0.05em',
-              }}
-            >
-              Trust protocol for hiring
-            </motion.p>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <div className="fixed inset-0 z-[100] flex overflow-hidden pointer-events-none">
+      {/* LEFT HALF */}
+      <motion.div
+        variants={leftCurtainVariants}
+        initial="initial"
+        animate={stage}
+        className="relative w-1/2 h-full bg-[#FFFFFF] shadow-[4px_0_24px_rgba(0,0,0,0.05)] border-r border-[#F1F5F9] flex items-center justify-end overflow-hidden"
+      >
+        {/* Word pinned to the right edge of this half */}
+        <div className="absolute right-0 translate-x-[0%] editorial-display text-nowrap pointer-events-none tracking-tight">
+          <span className="text-[#111113]">Hire</span>
+        </div>
+      </motion.div>
+
+      {/* RIGHT HALF */}
+      <motion.div
+        variants={rightCurtainVariants}
+        initial="initial"
+        animate={stage}
+        className="relative w-1/2 h-full bg-[#FFFFFF] shadow-[-4px_0_24px_rgba(0,0,0,0.05)] border-l border-[#F1F5F9] flex items-center justify-start overflow-hidden"
+      >
+        {/* Word pinned to the left edge of this half */}
+        <div className="absolute left-0 -translate-x-[0%] editorial-display text-nowrap pointer-events-none tracking-tight">
+          <span className="text-[#FF8131]">Chain</span>
+        </div>
+      </motion.div>
+    </div>
   );
 };
 

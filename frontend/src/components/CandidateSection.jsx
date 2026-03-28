@@ -1,92 +1,79 @@
 import React, { useState, useContext, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useScroll, useTransform } from 'framer-motion';
+import Grainient from './Grainient';
 import {
-  UserCheck, Fingerprint, Briefcase, GraduationCap,
-  Brain, CheckCircle2, AlertTriangle, Link2, Award,
-  Mail, ShieldAlert, Loader2, Upload,
+  Briefcase, GraduationCap,
+  Brain, CheckCircle2, AlertTriangle, Award,
+  Loader2, Upload,
 } from 'lucide-react';
-import { verifyCandidate, checkResumeLogic } from '../utils/api';
+import { checkResumeLogic } from '../utils/api';
 import { AppContext } from '../App';
 
-const float = {
-  hidden: { opacity: 0, y: 40 },
-  visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 80, damping: 14 } },
-};
-
-/* High-contrast verification badge — MetaMask-style green #109856 */
+/* Verified badge — dark minimal mode */
 const VerifiedBadge = ({ label = 'Verified' }) => (
-  <motion.span
-    initial={{ opacity: 0, scale: 0.8 }}
-    animate={{ opacity: 1, scale: 1 }}
-    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-    whileHover={{ y: -5 }}
-    className="flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full border cursor-default verify-pulse"
-    style={{ color: '#109856', backgroundColor: '#e6f4ed', borderColor: '#b0dfc4' }}
+  <span
+    className="flex items-center gap-2 text-[17px] uppercase tracking-[0.1em] font-semibold px-4 py-2 rounded-full cursor-default border border-white/20 bg-black/20 backdrop-blur-md text-white/90"
   >
-    <CheckCircle2 className="w-3 h-3" /> {label}
-  </motion.span>
+    <CheckCircle2 className="w-3.5 h-3.5 text-white/90" /> {label}
+  </span>
 );
 
-const CandidateSection = () => {
-  const {
-    isAadhaarVerified, setIsAadhaarVerified,
-    identityHash, setIdentityHash,
-    candidateData, setCandidateData,
-    addToast, userWallet,
-  } = useContext(AppContext);
+/* ── Trust Score Circular Progress (Minimal) ─────────────── */
+const TrustProgress = ({ score, color = 'rgba(255,255,255,0.9)' }) => {
+  const radius = 54;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (score / 100) * circumference;
 
-  const [bindingLoading, setBindingLoading] = useState(false);
+  return (
+    <div className="relative w-32 h-32 mx-auto">
+      <svg width="128" height="128" viewBox="0 0 128 128" className="opacity-90">
+        <circle cx="64" cy="64" r={radius} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="8" />
+        <motion.circle
+          cx="64" cy="64" r={radius} fill="none" stroke={color} strokeWidth="8"
+          strokeLinecap="butt"
+          strokeDasharray={circumference}
+          initial={{ strokeDashoffset: circumference }}
+          animate={{ strokeDashoffset: offset }}
+          transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+          transform="rotate(-90 64 64)"
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-[38px] font-semibold tracking-tight text-white">{score}%</span>
+      </div>
+    </div>
+  );
+};
+
+const CandidateSection = () => {
+  const { addToast } = useContext(AppContext);
+
   const [digiConnected, setDigiConnected] = useState(false);
   const [digiLoading, setDigiLoading] = useState(false);
-
-  /* ── AI Resume State ──────────────────────────────────────── */
   const [resumeLoading, setResumeLoading] = useState(false);
   const [resumeResult, setResumeResult] = useState(null);
   const fileInputRef = useRef(null);
 
-  /* ── Aadhaar Bind Identity → POST /verify-candidate ──────── */
-  const handleBindIdentity = async () => {
-    if (!userWallet) {
-      addToast('Please connect your wallet first.', 'error');
-      return;
-    }
-    setBindingLoading(true);
-    try {
-      // Generate a mock aadhaar hash from wallet address
-      const mockAadhaarHash = `sha256_${userWallet.slice(2, 18)}`;
-      const result = await verifyCandidate(mockAadhaarHash, 'dl_token_valid_001');
+  /* Scroll-Linked Exit Animation */
+  const sectionRef = useRef(null);
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["end 80%", "end start"]
+  });
+  const exitScale = useTransform(scrollYProgress, [0, 1], [1, 1.04]);
+  const exitOpacity = useTransform(scrollYProgress, [0, 1], [1, 0.4]);
 
-      if (result.status) {
-        setIsAadhaarVerified(true);
-        setIdentityHash(mockAadhaarHash);
-        setCandidateData(result.details);
-        addToast(`Identity bound — Trust score: ${result.trust_score}%`, 'success');
-      } else {
-        addToast(result.details?.reason || 'Aadhaar verification failed.', 'error');
-      }
-    } catch (err) {
-      addToast(err.message || 'Aadhaar binding failed — is backend running?', 'error');
-    } finally {
-      setBindingLoading(false);
-    }
-  };
+  /* ── API CALLS ────────────────────────────────── */
 
-  /* ── DigiLocker Connect ─────────────────────────────────── */
   const handleDigiLocker = async () => {
-    if (!isAadhaarVerified) {
-      addToast('Bind your Aadhaar identity first.', 'error');
-      return;
-    }
     setDigiLoading(true);
-    // Simulate DigiLocker OAuth (backend already returns degree data via verify-candidate)
     setTimeout(() => {
       setDigiConnected(true);
       setDigiLoading(false);
-      addToast('DigiLocker connected — certificates pulled.', 'success');
+      addToast('DigiLocker synchronization complete.', 'success');
     }, 1500);
   };
 
-  /* ── AI Resume Upload → POST /check-resume-logic ─────────── */
   const handleResumeUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -101,380 +88,213 @@ const CandidateSection = () => {
         const result = await checkResumeLogic(text);
         setResumeResult(result);
         if (result.status) {
-          addToast(`Resume clean — AI Score: ${result.trust_score}%`, 'success');
+          addToast(`Vector clean. Match: ${result.trust_score}%`, 'success');
         } else {
-          addToast(`Impossible claims detected — Score: ${result.trust_score}%`, 'error');
+          addToast(`Anomaly flag. Match: ${result.trust_score}%`, 'error');
         }
       } catch (err) {
-        addToast(err.message || 'Resume analysis failed.', 'error');
+        addToast(err.message || 'Analysis failed.', 'error');
       } finally {
         setResumeLoading(false);
       }
     };
     reader.onerror = () => {
-      addToast('Failed to read file.', 'error');
+      addToast('I/O error.', 'error');
       setResumeLoading(false);
     };
     reader.readAsText(file);
   };
 
   return (
-    <section id="candidate" className="relative py-28 px-6 md:px-12 max-w-7xl mx-auto">
-      {/* Title */}
+    <section 
+      id="candidate" 
+      ref={sectionRef}
+      className="relative min-h-[120vh] flex flex-col justify-center items-center py-24 px-6 md:px-12 w-full"
+      style={{ backgroundColor: 'transparent' }}
+    >
       <motion.div
-        initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }} variants={float}
-        className="text-center mb-16"
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true, amount: 0.15 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        className="absolute inset-0 pointer-events-none"
+      />
+
+      <motion.div 
+        style={{ scale: exitScale, opacity: exitOpacity }}
+        className="w-full max-w-[1200px] relative z-10"
       >
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 border border-blue-100 text-blue-600 text-sm font-bold mb-6">
-          <UserCheck className="w-4 h-4" /> For candidates
-        </div>
-        <h2 className="text-4xl md:text-5xl font-extrabold text-[#030D1E] tracking-tight">Candidate verification suite</h2>
-        <p className="mt-4 text-lg text-[#6A737D] max-w-2xl mx-auto leading-relaxed">
-          Bind your identity, verify your resume, and accept offers — all cryptographically provable.
-        </p>
-      </motion.div>
-
-      {/* Trust Layers Legend */}
-      <motion.div
-        initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }} variants={float}
-        className="flex flex-wrap justify-center gap-3 mb-12"
-      >
-        {[
-          { label: 'Layer 3: Aadhaar Identity', active: isAadhaarVerified },
-          { label: 'Layer 4: Escrow Floors', active: true },
-          { label: 'Layer 5: AI Resume Truth-Check', active: !!resumeResult },
-        ].map((layer, i) => (
-          <motion.span
-            key={i} whileHover={{ y: -5 }}
-            className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border cursor-default"
-            style={
-              layer.active
-                ? { color: '#109856', backgroundColor: '#e6f4ed', borderColor: '#b0dfc4' }
-                : { color: '#6A737D', backgroundColor: '#f3f4f6', borderColor: '#e5e7eb' }
-            }
-          >
-            <CheckCircle2 className="w-3 h-3" /> {layer.label}
-          </motion.span>
-        ))}
-      </motion.div>
-
-      {/* Cards Grid */}
-      <div className="grid md:grid-cols-2 gap-8">
-
-        {/* ── 1. Aadhaar Identity ──────────────────────────── */}
         <motion.div
-          initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} variants={float}
-          className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 flex flex-col"
+          initial={{ scale: 0.88, opacity: 0 }}
+          whileInView={{ scale: 1, opacity: 1 }}
+          viewport={{ once: true, amount: 0.15 }}
+          transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          className="editorial-card w-full relative overflow-hidden border border-[#E64A19]/20 shadow-xl rounded-[24px]"
+          style={{ backgroundColor: '#111111', '--text-primary': '#FAFAFA', '--text-secondary': '#E0E0E0', '--border-card': 'rgba(255,255,255,0.1)', '--border-subtle': 'rgba(255,255,255,0.05)' }}
         >
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-2xl bg-violet-50 text-violet-600">
-                <Fingerprint className="w-7 h-7" />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-[#030D1E]">Aadhaar identity</h3>
-                <p className="text-sm text-[#6A737D]">1 Human = 1 Wallet</p>
-              </div>
-            </div>
-            {isAadhaarVerified && <VerifiedBadge label="Bound" />}
+          <div className="absolute top-0 left-0 w-full h-full z-0 pointer-events-none">
+            <Grainient 
+              className="w-full h-full object-cover"
+              color1="#3A4A40" 
+              color2="#E64A19" 
+              color3="#FFE0D2" 
+              grainAnimated={true}
+              timeSpeed={0.25}
+              zoom={1.5}
+              contrast={1.0}
+            />
           </div>
-          <p className="text-[#6A737D] leading-relaxed mb-4 flex-1">
-            Create a one-way on-chain hash of your Aadhaar, binding your physical identity to a single wallet. This prevents Sybil attacks and duplicate profiles.
-          </p>
-
-          {/* Show identity hash after binding */}
-          {identityHash && (
-            <div className="mb-4 p-3 rounded-xl bg-green-50 border border-green-100 text-sm">
-              <p className="text-xs font-bold text-[#6A737D] uppercase tracking-wider mb-1">Identity Hash</p>
-              <p className="font-mono text-xs text-[#030D1E] break-all">{identityHash}</p>
-            </div>
-          )}
-
-          {/* Show candidate details from backend */}
-          {candidateData && (
-            <div className="mb-4 p-3 rounded-xl border" style={{ backgroundColor: '#e6f4ed', borderColor: '#b0dfc4' }}>
-              <p className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: '#109856' }}>DigiLocker Data</p>
-              <p className="text-sm font-semibold text-[#030D1E]">{candidateData.candidate_name}</p>
-              <p className="text-xs text-[#6A737D]">{candidateData.degree} — {candidateData.university} ({candidateData.graduation_year})</p>
-            </div>
-          )}
-
-          <motion.button
-            whileHover={{ y: -5 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={handleBindIdentity}
-            disabled={bindingLoading || isAadhaarVerified}
-            className="w-full py-4 rounded-full font-bold text-lg transition-colors cursor-pointer border-none flex items-center justify-center gap-2"
-            style={
-              isAadhaarVerified
-                ? { backgroundColor: '#109856', color: '#FFFFFF' }
-                : bindingLoading
-                  ? { backgroundColor: '#9ca3af', color: '#FFFFFF' }
-                  : { backgroundColor: '#030D1E', color: '#FFFFFF' }
-            }
+          
+          <motion.div
+            initial={{ opacity: 0, y: 32 }}
+            className="relative z-10 w-full h-full p-10 md:p-14"
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.4 }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
           >
-            {bindingLoading ? (
-              <><Loader2 className="w-5 h-5 animate-spin" /> Binding…</>
-            ) : isAadhaarVerified ? (
-              <><CheckCircle2 className="w-5 h-5" /> Identity bound</>
-            ) : (
-              <><Fingerprint className="w-5 h-5" /> Bind identity</>
-            )}
-          </motion.button>
-        </motion.div>
-
-        {/* ── 2. Work History (MCA21 Email) ────────────────── */}
-        <motion.div
-          initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} variants={float}
-          className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100"
-        >
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 rounded-2xl bg-blue-50 text-blue-600">
-              <Briefcase className="w-7 h-7" />
+            <div className="flex flex-col items-center justify-center text-center mb-16">
+              <span className="editorial-label mb-4">Talent Node</span>
+              <h2 className="editorial-heading">Verifiable ID Suite</h2>
+              <p className="editorial-body max-w-2xl mt-4">
+                A unified construct to bind your deterministic identity. Eliminate redundant screening by porting verified logic states structurally.
+              </p>
             </div>
-            <div>
-              <h3 className="text-xl font-bold text-[#030D1E]">Work history verification</h3>
-              <p className="text-sm text-[#6A737D]">MCA21-linked email confirmation</p>
-            </div>
-          </div>
-          <p className="text-[#6A737D] leading-relaxed mb-6">
-            We cross-reference your claimed employer against MCA21 registry and send an automated verification email to the company domain.
-          </p>
 
-          {/* Mock verified entries */}
-          <div className="space-y-3">
-            {[
-              { company: 'Paradigm Inc.', domain: 'paradigm.xyz', verified: true },
-              { company: 'Polygon Labs', domain: 'polygon.technology', verified: true },
-              { company: 'Freelance', domain: '—', verified: false },
-            ].map((entry, i) => (
-              <motion.div
-                key={i}
-                whileHover={{ y: -5 }}
-                className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-100"
-              >
-                <div className="flex items-center gap-3">
-                  <Mail className="w-4 h-4 text-[#6A737D]" />
-                  <div>
-                    <p className="text-sm font-semibold text-[#030D1E]">{entry.company}</p>
-                    <p className="text-xs font-mono text-[#6A737D]">{entry.domain}</p>
+            <div className="grid lg:grid-cols-2 gap-12 lg:gap-20">
+
+              {/* LEFT — DigiLocker + MCA21 */}
+              <div className="flex flex-col gap-12">
+                
+                {/* Box 1 (Was Hardware Binding, now DigiLocker) */}
+                <div>
+                  <div className="flex items-center justify-between mb-8 pb-8 border-b border-white/10">
+                    <div className="flex items-center gap-4">
+                      <GraduationCap className="w-6 h-6 text-white/90" />
+                      <div>
+                        <h3 className="text-[34px] font-semibold text-white tracking-tight">DigiLocker</h3>
+                      </div>
+                    </div>
+                    {digiConnected && <VerifiedBadge label="Synced" />}
+                  </div>
+
+                  <p className="editorial-body mb-8">
+                    Initiate an OAuth mapping to your state-issued records. Generates a secure token enabling access to educational credentials instantly.
+                  </p>
+
+                  {digiConnected ? (
+                    <div className="space-y-4 mb-8">
+                      {[
+                        { name: 'Data Structures', issuer: 'NPTEL', date: 'Mar 2025' },
+                        { name: 'Full Stack Engineering', issuer: 'NASSCOM', date: 'Aug 2025' },
+                      ].map((cert, i) => (
+                        <div key={i} className="flex items-center justify-between p-5 rounded-lg border border-[var(--border-card)] bg-[rgba(0,0,0,0.02)]">
+                          <div>
+                            <p className="text-[18px] font-semibold text-[var(--text-primary)] mb-1">{cert.name}</p>
+                            <p className="text-[19px] text-[var(--text-secondary)] tracking-wide">{cert.issuer} • {cert.date}</p>
+                          </div>
+                          <Award className="w-5 h-5 text-[var(--accent-color)]" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleDigiLocker}
+                      disabled={digiLoading}
+                      className="w-full text-[#111] font-semibold text-[17px] tracking-wide py-4 bg-white hover:bg-white/90 rounded-full transition shadow-lg flex items-center justify-center gap-2"
+                    >
+                      {digiLoading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'OAuth DigiLocker'}
+                    </button>
+                  )}
+                </div>
+
+                {/* Box 2 (Corporate Ledgers) */}
+                <div className="pt-8 border-t border-white/10">
+                  <div className="flex items-center gap-4 mb-10">
+                    <Briefcase className="w-6 h-6 text-white/90" />
+                    <h3 className="text-[34px] font-semibold text-white tracking-tight">Corporate Ledgers</h3>
+                  </div>
+
+                  <div className="space-y-4 pl-3 relative border-l border-white/20">
+                    {[
+                      { company: 'Paradigm Inc.', domain: 'paradigm.xyz', verified: true },
+                      { company: 'Polygon Labs', domain: 'polygon.technology', verified: true },
+                      { company: 'Freelance', domain: '—', verified: false },
+                    ].map((entry, i) => (
+                      <div key={i} className="flex items-center justify-between pl-6 py-2 relative">
+                        <div className={`absolute -left-[5px] w-[9px] h-[9px] rounded-full ${entry.verified ? 'bg-white' : 'bg-white/20'}`} />
+                        <div>
+                          <p className="text-[18px] font-semibold text-white">{entry.company}</p>
+                          <p className="editorial-label opacity-60 mt-1">{entry.domain}</p>
+                        </div>
+                        {entry.verified ? <span className="editorial-label text-white/90">Linked</span> : <span className="editorial-label text-white/40">Pending</span>}
+                      </div>
+                    ))}
                   </div>
                 </div>
-                {entry.verified ? (
-                  <VerifiedBadge />
-                ) : (
-                  <span className="text-xs font-bold text-gray-400 bg-gray-100 px-3 py-1 rounded-full">Unverifiable</span>
-                )}
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* ── 3. DigiLocker Skills ─────────────────────────── */}
-        <motion.div
-          initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} variants={float}
-          className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-2xl bg-green-50 text-green-600">
-                <GraduationCap className="w-7 h-7" />
               </div>
-              <div>
-                <h3 className="text-xl font-bold text-[#030D1E]">DigiLocker skills</h3>
-                <p className="text-sm text-[#6A737D]">NPTEL & NASSCOM certificates</p>
-              </div>
-            </div>
-            {digiConnected && <VerifiedBadge label="Connected" />}
-          </div>
-          <p className="text-[#6A737D] leading-relaxed mb-6">
-            Connect your DigiLocker via OAuth to pull verified NPTEL, NASSCOM, and university certificates directly into your on-chain resume.
-          </p>
 
-          {digiConnected ? (
-            <div className="space-y-3">
-              {[
-                { name: 'Data Structures & Algorithms', issuer: 'NPTEL', date: 'Mar 2025' },
-                { name: 'Full Stack Development', issuer: 'NASSCOM', date: 'Aug 2025' },
-              ].map((cert, i) => (
-                <motion.div
-                  key={i} whileHover={{ y: -5 }}
-                  className="flex items-center justify-between p-3 rounded-xl border"
-                  style={{ backgroundColor: '#e6f4ed', borderColor: '#b0dfc4' }}
-                >
-                  <div className="flex items-center gap-3">
-                    <Award className="w-4 h-4" style={{ color: '#109856' }} />
-                    <div>
-                      <p className="text-sm font-semibold text-[#030D1E]">{cert.name}</p>
-                      <p className="text-xs text-[#6A737D]">{cert.issuer} · {cert.date}</p>
+              {/* RIGHT — Resume Analyser */}
+              <div className="flex flex-col gap-12">
+
+                {/* Box 3 (Resume Analyser) */}
+                <div>
+                  <div className="flex items-center flex-col md:flex-row justify-between mb-8 pb-8 border-b border-white/10">
+                    <div className="flex items-center gap-4 mb-4 md:mb-0">
+                      <Brain className="w-6 h-6 text-white/90" />
+                      <h3 className="text-[34px] font-semibold text-white tracking-tight">Resume Analyser</h3>
                     </div>
                   </div>
-                  <CheckCircle2 className="w-4 h-4" style={{ color: '#109856' }} />
-                </motion.div>
-              ))}
-            </div>
-          ) : (
-            <motion.button
-              whileHover={{ y: -5 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={handleDigiLocker}
-              disabled={digiLoading || !isAadhaarVerified}
-              className={`w-full py-4 rounded-full font-bold text-lg transition-all cursor-pointer border-none flex items-center justify-center gap-2 ${
-                !isAadhaarVerified ? 'opacity-50' : ''
-              }`}
-              style={{ backgroundColor: digiLoading ? '#9ca3af' : '#109856', color: '#FFFFFF' }}
-            >
-              {digiLoading ? (
-                <><Loader2 className="w-5 h-5 animate-spin" /> Connecting…</>
-              ) : (
-                <><Link2 className="w-5 h-5" /> Connect DigiLocker</>
-              )}
-            </motion.button>
-          )}
 
-          {!isAadhaarVerified && !digiConnected && (
-            <p className="mt-3 text-xs text-center text-amber-600 font-semibold">Bind Aadhaar identity first to unlock DigiLocker</p>
-          )}
-        </motion.div>
-
-        {/* ── 4. AI Resume Scanner ─────────────────────────── */}
-        <motion.div
-          initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} variants={float}
-          className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100"
-        >
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 rounded-2xl bg-amber-50 text-amber-600">
-              <Brain className="w-7 h-7" />
-            </div>
-            <div>
-              <h3 className="text-xl font-bold text-[#030D1E]">AI consistency score</h3>
-              <p className="text-sm text-[#6A737D]">Gemini 2.0 Flash analysis</p>
-            </div>
-          </div>
-          <p className="text-[#6A737D] leading-relaxed mb-6">
-            Upload your resume and our AI cross-references dates, tenures, and claim logic. It flags impossible timelines and inflated experiences.
-          </p>
-
-          {/* File Upload Button */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".txt,.pdf,.doc,.docx"
-            className="hidden"
-            onChange={handleResumeUpload}
-          />
-          <motion.button
-            whileHover={{ y: -5 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={() => fileInputRef.current?.click()}
-            disabled={resumeLoading}
-            className="w-full py-4 rounded-full font-bold text-lg transition-all cursor-pointer border-2 border-dashed flex items-center justify-center gap-2 mb-6"
-            style={{
-              backgroundColor: resumeLoading ? '#f3f4f6' : 'white',
-              borderColor: resumeLoading ? '#9ca3af' : '#FF8131',
-              color: resumeLoading ? '#9ca3af' : '#FF8131',
-            }}
-          >
-            {resumeLoading ? (
-              <><Loader2 className="w-5 h-5 animate-spin" /> Analyzing with Gemini…</>
-            ) : (
-              <><Upload className="w-5 h-5" /> Upload resume for AI scan</>
-            )}
-          </motion.button>
-
-          {/* Live AI Result from Backend */}
-          {resumeResult && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ type: 'spring', stiffness: 200, damping: 18 }}
-              className="rounded-2xl p-6 border"
-              style={{
-                background: resumeResult.status
-                  ? 'linear-gradient(135deg, #e6f4ed, #f0faf5)'
-                  : 'linear-gradient(135deg, #fffbeb, #fff7ed)',
-                borderColor: resumeResult.status ? '#b0dfc4' : '#fde68a',
-              }}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-sm font-bold uppercase tracking-wider"
-                  style={{ color: resumeResult.status ? '#109856' : '#d97706' }}
-                >
-                  {resumeResult.status ? 'Resume verified' : 'Impossible claims detected'}
-                </span>
-                <span className="text-3xl font-extrabold"
-                  style={{ color: resumeResult.status ? '#109856' : '#d97706' }}
-                >
-                  {resumeResult.trust_score}%
-                </span>
-              </div>
-
-              {/* Verified Tenure Badge */}
-              {resumeResult.status && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.2, type: 'spring', stiffness: 300 }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold mb-4"
-                  style={{ backgroundColor: '#109856', color: '#FFFFFF' }}
-                >
-                  <CheckCircle2 className="w-3 h-3" /> Verified Tenure
-                </motion.div>
-              )}
-
-              {/* Gemini Full Analysis */}
-              {resumeResult.details?.gemini_full_analysis && (
-                <div className="p-4 rounded-xl bg-white/70 border border-gray-100">
-                  <p className="text-xs font-bold text-[#6A737D] uppercase tracking-wider mb-2">Gemini Analysis</p>
-                  <p className="text-sm text-[#030D1E] leading-relaxed whitespace-pre-wrap">
-                    {resumeResult.details.gemini_full_analysis.slice(0, 600)}
+                  <p className="editorial-body mb-8">
+                    Cross-reference PDF semantics directly against your active block-state. Any time-overlap anomalies or fabricated experiences are isolated instantly.
                   </p>
+
+                  <input ref={fileInputRef} type="file" accept=".txt,.pdf,.doc,.docx" className="hidden" onChange={handleResumeUpload} />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={resumeLoading}
+                    className="w-full text-white font-semibold text-[17px] tracking-wide py-4 bg-black/40 backdrop-blur-md rounded-lg transition shadow-none border border-white/30 hover:bg-black/60 flex items-center justify-center gap-2 mb-8"
+                  >
+                    {resumeLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Upload className="w-5 h-5"/> Input Document Matrix</>}
+                  </button>
+
+                  {resumeResult ? (
+                    <div className="rounded-xl p-6 bg-black/30 backdrop-blur-md border border-white/10 mt-4">
+                      <div className="flex items-center justify-between mb-8">
+                        <span className="editorial-label text-white/90">
+                          {resumeResult.status ? 'Verified Clean' : 'Anomalies Detected'}
+                        </span>
+                      </div>
+                      <TrustProgress score={resumeResult.trust_score} color={resumeResult.status ? '#FFFFFF' : 'rgba(255,255,255,0.4)'} />
+                      {resumeResult.details?.ai_full_analysis && (
+                        <div className="mt-8 p-5 rounded-lg bg-black/20 border border-white/10">
+                          <p className="editorial-label opacity-70 mb-3 text-white">Vector Analysis</p>
+                          <p className="text-[17px] leading-relaxed text-white/80">
+                            {resumeResult.details.ai_full_analysis.slice(0, 300)}...
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="rounded-xl p-6 bg-black/20 backdrop-blur-md border border-white/10 mt-4 opacity-70">
+                      <div className="flex items-center justify-between mb-8">
+                        <span className="editorial-label text-white/60">Mock Data</span>
+                        <span className="text-[38px] font-semibold text-white/80">78%</span>
+                      </div>
+                      <div className="space-y-4">
+                        <div className="flex items-start gap-3">
+                          <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0 text-white/60" />
+                          <p className="text-[18px] text-white/80">Overlap conflict: paradigm.xyz presence invalidates polygon data.</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-
-              {/* AI Score Badge */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
-                className="mt-4 flex items-center gap-2 text-xs font-semibold text-[#6A737D]"
-              >
-                <Brain className="w-4 h-4" />
-                Analysis engine: {resumeResult.details?.analysis_engine || 'Gemini 2.0 Flash'} · {resumeResult.details?.resume_length_chars || 0} chars analyzed
-              </motion.div>
-            </motion.div>
-          )}
-
-          {/* Static fallback if no upload yet */}
-          {!resumeResult && !resumeLoading && (
-            <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-6 border border-amber-200">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-sm font-bold text-amber-800 uppercase tracking-wider">Sample report</span>
-                <span className="text-3xl font-extrabold text-amber-600">78%</span>
               </div>
-              <div className="space-y-2">
-                <motion.div whileHover={{ y: -5 }} className="flex items-start gap-2 p-3 rounded-xl bg-white border border-amber-100">
-                  <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
-                  <p className="text-sm text-[#030D1E]">
-                    <span className="font-bold">Warning:</span> Impossible tenure claim — 3 years at Company X but LinkedIn shows 14 months.
-                  </p>
-                </motion.div>
-                <motion.div whileHover={{ y: -5 }} className="flex items-start gap-2 p-3 rounded-xl bg-white border" style={{ borderColor: '#b0dfc4' }}>
-                  <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" style={{ color: '#109856' }} />
-                  <p className="text-sm text-[#030D1E]">Education timeline verified — B.Tech 2020–2024 matches NPTEL certificate dates.</p>
-                </motion.div>
-                <motion.div whileHover={{ y: -5 }} className="flex items-start gap-2 p-3 rounded-xl bg-white border border-amber-100">
-                  <ShieldAlert className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
-                  <p className="text-sm text-[#030D1E]">
-                    <span className="font-bold">Notice:</span> Skill gap detected — claims "Solidity expert" with no blockchain project evidence.
-                  </p>
-                </motion.div>
-              </div>
-              <p className="mt-4 text-xs text-center text-[#6A737D] font-semibold">Upload your resume above to get a real AI analysis</p>
             </div>
-          )}
+          </motion.div>
         </motion.div>
-      </div>
+      </motion.div>
     </section>
   );
 };

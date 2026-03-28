@@ -1,5 +1,29 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 @import "tailwindcss";
+
+/* ══════════════════════════════════════════════════════════════
+   HireChain — Editorial Cinematic Redesign (Light Mode Update)
+   Inspired by save.design style but completely light/orange
+   ══════════════════════════════════════════════════════════════ */
+
+:root {
+  --bg-color: #FAFAFA;
+  --bg-surface: #F8FAFC;
+  --bg-card: #FFFFFF;
+  --bg-ticker: #F1F5F9;
+  
+  --text-primary: #111113;
+  --text-secondary: #475569;
+  --accent-color: #FF8131;
+  --accent-color-faded: rgba(255, 129, 49, 0.2);
+
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --border-card: rgba(0, 0, 0, 0.08);
+
+  /* Strict easing rules */
+  --ease-entrance: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-exit: cubic-bezier(0.7, 0, 0.84, 0);
+}
 
 @layer base {
   *,
@@ -9,60 +33,170 @@
   }
 
   html {
-    scroll-behavior: smooth;
+    background-color: var(--bg-color);
   }
 
   body {
     font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
-    background-color: #F2F4F6;
-    color: #030D1E;
+    background-color: var(--bg-color);
+    color: var(--text-primary);
     margin: 0;
     padding: 0;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    line-height: 1.6;
+    line-height: 1.7;
+    overflow-x: hidden;
+    font-weight: 500;
+    font-size: 18px;
   }
 
-  /* Ensure all buttons/inputs inherit Inter */
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 700;
+  }
+
   button, input, select, textarea {
     font-family: inherit;
   }
 
-  /* Scrollbar styling */
   ::-webkit-scrollbar {
-    width: 8px;
-  }
-  ::-webkit-scrollbar-track {
-    background: #F2F4F6;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: #d1d5db;
-    border-radius: 999px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: #9ca3af;
+    width: 0px; 
+    background: transparent;
   }
 }
 
-/* ── Neon glow utilities ───────────────────────────────── */
-.neon-glow {
-  filter: drop-shadow(0 0 12px rgba(138, 43, 226, 0.4)) drop-shadow(0 0 24px rgba(0, 255, 255, 0.2));
+/* ══════════════════════════════════════════════════════════════
+   TYPOGRAPHY SCALES
+   ══════════════════════════════════════════════════════════════ */
+.editorial-display {
+  font-size: clamp(56px, 8vw, 100px);
+  font-weight: 800;
+  letter-spacing: -0.025em; /* Matches Tailwind tracking-tight */
+  line-height: 1.1; /* Matches Tailwind leading-[1.1] */
+  color: var(--text-primary);
 }
 
-.neon-glow-sm {
-  filter: drop-shadow(0 0 6px rgba(138, 43, 226, 0.3)) drop-shadow(0 0 12px rgba(0, 255, 255, 0.15));
+.editorial-heading {
+  font-size: clamp(34px, 4.5vw, 56px);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  color: var(--text-primary);
 }
 
-.neon-border {
-  box-shadow: 0 0 15px rgba(138, 43, 226, 0.15), 0 0 30px rgba(0, 255, 255, 0.08), inset 0 0 15px rgba(138, 43, 226, 0.03);
+.editorial-label {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--accent-color);
 }
 
-/* ── Green verification pulse ──────────────────────────── */
-@keyframes verifyPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 152, 86, 0.2); }
-  50% { box-shadow: 0 0 0 6px rgba(16, 152, 86, 0); }
+.editorial-body {
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 1.8;
+  color: var(--text-secondary);
 }
 
-.verify-pulse {
-  animation: verifyPulse 2s ease-in-out infinite;
+/* ══════════════════════════════════════════════════════════════
+   BUTTONS
+   ══════════════════════════════════════════════════════════════ */
+.btn-accent {
+  background: var(--accent-color);
+  color: #FFFFFF;
+  font-weight: 500;
+  border: none;
+  border-radius: 6px;
+  padding: 12px 24px;
+  box-shadow: none;
+  transition: filter 300ms var(--ease-entrance), transform 300ms var(--ease-entrance);
+}
+
+.btn-accent:hover {
+  filter: brightness(1.1);
+}
+
+.btn-transparent {
+  background: transparent;
+  color: var(--text-primary);
+  font-weight: 500;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 12px 24px;
+  transition: background 300ms var(--ease-entrance), border-color 300ms var(--ease-entrance);
+}
+
+.btn-transparent:hover {
+  background: rgba(0,0,0,0.03);
+  border-color: rgba(0,0,0,0.15);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CARDS
+   ══════════════════════════════════════════════════════════════ */
+.editorial-card {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--border-card);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+  transition: transform 200ms var(--ease-entrance), border-color 200ms var(--ease-entrance), box-shadow 200ms var(--ease-entrance);
+}
+
+.editorial-card-interactive:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent-color-faded);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   INPUTS
+   ══════════════════════════════════════════════════════════════ */
+.editorial-input {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-card);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 500;
+  padding: 14px 18px;
+  transition: border-color 200ms var(--ease-entrance);
+}
+
+.editorial-input::placeholder {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.editorial-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   TICKER
+   ══════════════════════════════════════════════════════════════ */
+@keyframes ticker {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-50%, 0, 0); }
+}
+
+.ticker-track {
+  display: flex;
+  white-space: nowrap;
+  animation: ticker 40s linear infinite;
+  will-change: transform;
+}
+
+/* Respect user preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

@@ -1,16 +1,40 @@
-import React, { useState, useContext } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useContext, useRef } from 'react';
+import { motion, useScroll, useTransform } from 'framer-motion';
+import ElectricBorder from './ElectricBorder';
+import Grainient from './Grainient';
 import {
-  Building2, ShieldCheck, BarChart3, Send,
-  CheckCircle2, AlertTriangle, FileText, TrendingUp, Loader2,
+  ShieldCheck,
+  CheckCircle2, AlertTriangle, FileText, Loader2,
 } from 'lucide-react';
 import { ESCROW_FLOOR } from '../utils/contract';
 import { verifyGST } from '../utils/api';
 import { AppContext } from '../App';
 
-const float = {
-  hidden: { opacity: 0, y: 40 },
-  visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 80, damping: 14 } },
+/* ── Trust Score Circular Progress (Minimal) ─────────────── */
+const TrustProgress = ({ score, color = 'rgba(255,255,255,0.9)' }) => {
+  const radius = 54;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (score / 100) * circumference;
+
+  return (
+    <div className="relative w-32 h-32 mx-auto">
+      <svg width="128" height="128" viewBox="0 0 128 128" className="opacity-90">
+        <circle cx="64" cy="64" r={radius} fill="none" stroke="var(--border-card)" strokeWidth="8" />
+        <motion.circle
+          cx="64" cy="64" r={radius} fill="none" stroke={color} strokeWidth="8"
+          strokeLinecap="butt"
+          strokeDasharray={circumference}
+          initial={{ strokeDashoffset: circumference }}
+          animate={{ strokeDashoffset: offset }}
+          transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+          transform="rotate(-90 64 64)"
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-[38px] font-semibold tracking-tight text-[var(--text-primary)]">{score}%</span>
+      </div>
+    </div>
+  );
 };
 
 const CompanySection = () => {
@@ -21,7 +45,17 @@ const CompanySection = () => {
   const [form, setForm] = useState({ title: '', wallet: '', salary: '' });
   const [offerCreated, setOfferCreated] = useState(false);
 
-  /* ── Call backend: POST /verify-company ──────────────────── */
+  /* Scroll-Linked Exit Animation */
+  const sectionRef = useRef(null);
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["end 80%", "end start"]
+  });
+
+  const exitScale = useTransform(scrollYProgress, [0, 1], [1, 1.04]);
+  const exitOpacity = useTransform(scrollYProgress, [0, 1], [1, 0.4]);
+
+  /* ── API CALLS (Preserved) ──────────────────────────────── */
   const handleTrustCheck = async (e) => {
     e.preventDefault();
     if (!gst.trim()) { addToast('Please enter a GST number.', 'error'); return; }
@@ -34,266 +68,225 @@ const CompanySection = () => {
         addToast(`MCA21 matched — Trust score: ${result.trust_score}%`, 'success');
       } else {
         setIsGSTVerified(false);
-        const reason = result.details?.reason || result.details?.layer_3_mca21 || 'GST not found in MCA21 registry.';
-        addToast(`GST verification failed: ${typeof reason === 'string' ? reason : 'Not found in registry'}`, 'error');
+        const reason = result.details?.reason || result.details?.layer_3_mca21 || 'GST not found in registry.';
+        addToast(`Verification failed: ${typeof reason === 'string' ? reason : 'Not found in registry'}`, 'error');
       }
     } catch (err) {
-      addToast(err.message || 'GST verification failed.', 'error');
+      addToast(err.message || 'Verification failed.', 'error');
       setIsGSTVerified(false);
     } finally {
       setLoading(false);
     }
   };
 
-  /* ── Create Offer (with escrow floor) ───────────────────── */
   const handleCreateOffer = (e) => {
     e.preventDefault();
-    if (!isGSTVerified) {
-      addToast('Please verify GST first.', 'error');
-      return;
-    }
+    if (!isGSTVerified) { addToast('Verify details first.', 'error'); return; }
     const salaryNum = Number(form.salary);
-    if (salaryNum < ESCROW_FLOOR) {
-      addToast(`Minimum escrow is ₹${ESCROW_FLOOR.toLocaleString()} USDC`, 'error');
-      return;
-    }
-    if (!userWallet) {
-      addToast('Please connect your wallet first.', 'error');
-      return;
-    }
-    // ✅ Offer created — in production this calls createOffer() from contract.js
+    if (salaryNum < ESCROW_FLOOR) { addToast(`Minimum escrow is ₹${ESCROW_FLOOR.toLocaleString()} USDC`, 'error'); return; }
+    if (!userWallet) { addToast('Connect your wallet first.', 'error'); return; }
     setOfferCreated(true);
-    addToast(`Offer created: ${form.title} — ₹${salaryNum.toLocaleString()} USDC escrowed`, 'success');
+    addToast(`Offer generated: ${form.title} — ₹${salaryNum.toLocaleString()} USDC escrowed`, 'success');
   };
 
-  /* ── Extract trust details from backend response ────────── */
   const mca = gstTrustData?.details?.layer_3_mca21;
   const trustScore = gstTrustData?.trust_score;
 
   return (
-    <section id="company" className="relative py-28 px-6 md:px-12 max-w-7xl mx-auto">
-      {/* Title */}
+    <section 
+      id="company" 
+      ref={sectionRef}
+      className="relative min-h-[120vh] flex flex-col justify-center items-center py-24 px-6 md:px-12 w-full"
+      style={{ backgroundColor: 'transparent' }}
+    >
+      {/* Background Entrance */}
       <motion.div
-        initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }} variants={float}
-        className="text-center mb-16"
-      >
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-50 border border-orange-100 text-[#FF8131] text-sm font-bold mb-6">
-          <Building2 className="w-4 h-4" /> For companies
-        </div>
-        <h2 className="text-4xl md:text-5xl font-extrabold text-[#030D1E] tracking-tight">Company trust gate</h2>
-        <p className="mt-4 text-lg text-[#6A737D] max-w-2xl mx-auto leading-relaxed">
-          Before you create an on-chain offer, prove your entity is real. Our 3-layer trust check verifies GST, MCA21, and generates an AI trust score.
-        </p>
-      </motion.div>
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: true, amount: 0.15 }}
+        transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+        className="absolute inset-0 pointer-events-none z-0"
+      />
 
-      {/* Trust Layer Indicators */}
-      <motion.div
-        initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }} variants={float}
-        className="flex flex-wrap justify-center gap-3 mb-12"
+      <motion.div 
+        style={{ scale: exitScale, opacity: exitOpacity }}
+        className="w-full max-w-[1200px] relative z-10"
       >
-        {[
-          { label: 'Layer 1: GST & MCA21 Cross-Check', active: isGSTVerified },
-          { label: 'Layer 2: AI Trust Score', active: !!gstTrustData?.details?.layer_2_gemini },
-        ].map((layer, i) => (
-          <motion.span
-            key={i} whileHover={{ y: -5 }}
-            className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border cursor-default"
-            style={
-              layer.active
-                ? { color: '#109856', backgroundColor: '#e6f4ed', borderColor: '#b0dfc4' }
-                : { color: '#6A737D', backgroundColor: '#f3f4f6', borderColor: '#e5e7eb' }
-            }
-          >
-            <CheckCircle2 className="w-3 h-3" /> {layer.label}
-          </motion.span>
-        ))}
-      </motion.div>
-
-      <div className="grid lg:grid-cols-2 gap-10">
-        {/* LEFT — 3-Layer Trust Check */}
+        {/* Massive Card (Scale Entrance) */}
         <motion.div
-          initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} variants={float}
-          className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100"
+          initial={{ scale: 0.88, opacity: 0 }}
+          whileInView={{ scale: 1, opacity: 1 }}
+          viewport={{ once: true, amount: 0.15 }}
+          transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          className="w-full relative"
         >
-          <h3 className="text-2xl font-bold text-[#030D1E] mb-6 flex items-center gap-2">
-            <ShieldCheck className="w-6 h-6 text-[#FF8131]" /> 3-Layer trust check
-          </h3>
-          <form className="flex flex-col gap-4" onSubmit={handleTrustCheck}>
-            <div>
-              <label className="text-sm font-semibold text-[#6A737D] mb-1 block">GST number</label>
-              <input
-                type="text" value={gst} onChange={(e) => setGst(e.target.value)} required
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#FF8131] transition-all"
-                placeholder="22AAAAA0000A1Z5"
-              />
-            </div>
-            <button
-              type="submit" disabled={loading}
-              className={`mt-2 py-3.5 rounded-full font-bold transition-colors cursor-pointer border-none flex items-center justify-center gap-2 ${
-                loading ? 'bg-gray-400 text-gray-200' : 'bg-[#030D1E] text-white hover:bg-gray-800'
-              }`}
+          <ElectricBorder color="rgba(255, 255, 255, 0.15)" speed={0.5} chaos={0.08} borderRadius={24}>
+            <div 
+              className="editorial-card w-full relative overflow-hidden border border-[#E64A19]/20 shadow-xl rounded-[24px]"
+              style={{ backgroundColor: '#111111', '--text-primary': '#FAFAFA', '--text-secondary': '#E0E0E0', '--border-card': 'rgba(255,255,255,0.1)' }}
             >
-              {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> Verifying…</> : 'Run trust verification'}
-            </button>
-          </form>
-
-          {/* Live API Result — AI Trust Score Card */}
-          {gstTrustData && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-              transition={{ type: 'spring', stiffness: 200, damping: 18 }}
-              className="mt-6 rounded-2xl p-6 border"
-              style={
-                isGSTVerified
-                  ? { background: 'linear-gradient(135deg, #e6f4ed, #f0faf5)', borderColor: '#b0dfc4' }
-                  : { background: 'linear-gradient(135deg, #fef2f2, #fff5f5)', borderColor: '#fecaca' }
-              }
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-lg font-bold text-[#030D1E] flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5" style={{ color: isGSTVerified ? '#109856' : '#ef4444' }} />
-                  {isGSTVerified ? 'AI trust score' : 'Verification failed'}
-                </h4>
-                <span className="text-3xl font-extrabold" style={{ color: isGSTVerified ? '#109856' : '#ef4444' }}>
-                  {trustScore}%
-                </span>
+              <div className="absolute top-0 left-0 w-full h-full z-0 pointer-events-none">
+                <Grainient 
+                  className="w-full h-full object-cover"
+                  color1="#3A4A40" 
+                  color2="#E64A19" 
+                  color3="#FFE0D2" 
+                  grainAnimated={true}
+                  timeSpeed={0.25}
+                  zoom={1.5}
+                  contrast={1.0}
+                />
               </div>
 
-              {isGSTVerified && typeof mca === 'object' && (
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-white rounded-xl p-3 text-center border" style={{ borderColor: '#b0dfc4' }}>
-                    <p className="text-xs text-[#6A737D] font-semibold uppercase tracking-wider">Company age</p>
-                    <p className="text-lg font-bold text-[#030D1E] mt-1">{mca.company_age_years} yrs</p>
-                  </div>
-                  <div className="bg-white rounded-xl p-3 text-center border" style={{ borderColor: '#b0dfc4' }}>
-                    <p className="text-xs text-[#6A737D] font-semibold uppercase tracking-wider">Entity</p>
-                    <p className="text-lg font-bold text-[#030D1E] mt-1">{mca.entity_type}</p>
-                  </div>
-                  <div className="bg-white rounded-xl p-3 text-center border" style={{ borderColor: '#b0dfc4' }}>
-                    <p className="text-xs text-[#6A737D] font-semibold uppercase tracking-wider">Status</p>
-                    <p className="text-lg font-bold mt-1 flex items-center justify-center gap-1" style={{ color: '#109856' }}>
-                      <CheckCircle2 className="w-4 h-4" /> {mca.status}
+              <div className="relative z-10 w-full h-full p-10 md:p-14 flex flex-col items-center">
+                <motion.div
+                  initial={{ opacity: 0, y: 32 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.4 }}
+                  transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                  className="w-full"
+                >
+                  {/* Section Header */}
+                  <div className="flex flex-col items-center justify-center text-center mb-16">
+                    <span className="editorial-label mb-4">Enterprise Node</span>
+                    <h2 className="editorial-heading">Company Trust Gate</h2>
+                    <p className="editorial-body max-w-2xl mt-4">
+                      Validate business entities structurally. The protocol strictly enforces a multi-layer consensus covering GST registries and off-chain AI heuristics.
                     </p>
                   </div>
-                </div>
-              )}
 
-              {/* Gemini AI Analysis */}
-              {gstTrustData.details?.layer_2_gemini && (
-                <div className="mt-4 p-4 rounded-xl bg-white/70 border border-gray-100">
-                  <p className="text-xs font-bold text-[#6A737D] uppercase tracking-wider mb-2">Gemini AI Analysis</p>
-                  <p className="text-sm text-[#030D1E] leading-relaxed whitespace-pre-wrap">
-                    {typeof gstTrustData.details.layer_2_gemini === 'string'
-                      ? gstTrustData.details.layer_2_gemini.slice(0, 500)
-                      : JSON.stringify(gstTrustData.details.layer_2_gemini)}
-                  </p>
-                </div>
-              )}
+                  <div className="grid lg:grid-cols-2 gap-12 lg:gap-20">
+                    {/* LEFT COLUMN */}
+                    <div>
+                      <div className="flex items-center gap-3 mb-8">
+                        <ShieldCheck className="w-5 h-5 text-white/90" />
+                        <h3 className="text-2xl font-semibold tracking-tight text-[var(--text-primary)]">Entity Parameters</h3>
+                      </div>
+                      
+                      <form className="flex flex-col gap-6" onSubmit={handleTrustCheck}>
+                        <div>
+                          <label className="editorial-label block mb-3">GST Number / Signature</label>
+                          <input
+                            type="text" value={gst} onChange={(e) => setGst(e.target.value)} required
+                            className="w-full editorial-input font-mono uppercase tracking-wider bg-black/20 border-white/20 text-white placeholder-white/40 focus:border-white focus:bg-black/40 backdrop-blur-md transition-all"
+                            placeholder="22AAAAA0000A1Z5"
+                          />
+                        </div>
+                        <button
+                          type="submit" disabled={loading}
+                          className={`w-full text-[17px] font-semibold tracking-wide py-4 rounded-lg bg-black/30 border border-white/20 text-white hover:bg-black/50 backdrop-blur-md transition flex items-center justify-center gap-2 ${loading ? 'opacity-50' : ''}`}
+                        >
+                          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Execute Sequence'}
+                        </button>
+                      </form>
 
-              {/* MCA21 Matched Badge */}
-              {isGSTVerified && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.2 }}
-                  className="mt-4 flex items-center gap-2 px-4 py-2 rounded-full w-fit mx-auto"
-                  style={{ backgroundColor: '#109856', color: '#FFFFFF' }}
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span className="text-sm font-bold">MCA21 Matched — {mca?.entity_name}</span>
+                      {gstTrustData && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                          className="mt-12 pt-10 border-t border-[var(--border-card)]"
+                        >
+                          <h4 className="text-2xl font-semibold flex items-center justify-between text-[var(--text-primary)] mb-8">
+                            <span>Heuristics Evaluated</span>
+                            {isGSTVerified ? 
+                              <CheckCircle2 className="w-5 h-5 text-white/90" /> : 
+                              <AlertTriangle className="w-5 h-5 text-white/40" />
+                            }
+                          </h4>
+
+                          <TrustProgress score={trustScore} color={isGSTVerified ? '#FFFFFF' : 'rgba(255,255,255,0.4)'} />
+
+                          {isGSTVerified && typeof mca === 'object' && (
+                            <div className="grid grid-cols-3 gap-4 mt-10">
+                              {[
+                                { label: 'Lifespan', value: `${mca.company_age_years} yrs` },
+                                { label: 'Type', value: mca.entity_type },
+                                { label: 'State', value: mca.status },
+                              ].map((stat, i) => (
+                                <div key={i} className="text-center p-4 bg-[rgba(0,0,0,0.03)] rounded-lg border border-[var(--border-card)]">
+                                  <p className="editorial-label mb-2 opacity-60">{stat.label}</p>
+                                  <p className="text-base font-semibold text-[var(--text-primary)] tracking-tight">{stat.value}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {gstTrustData.details?.layer_2_ai && (
+                            <div className="mt-6 p-5 bg-[rgba(0,0,0,0.03)] rounded-lg border border-[var(--border-card)]">
+                              <p className="editorial-label mb-3 text-[var(--text-secondary)]">Vector Analysis</p>
+                              <p className="text-[17px] leading-relaxed text-[var(--text-secondary)]">
+                                {typeof gstTrustData.details.layer_2_ai === 'string'
+                                  ? gstTrustData.details.layer_2_ai.slice(0, 500)
+                                  : "Verified via structured data endpoints mapping against registry schemas."}
+                              </p>
+                            </div>
+                          )}
+                        </motion.div>
+                      )}
+                    </div>
+
+                    {/* RIGHT COLUMN */}
+                    <div>
+                      <div className="flex items-center gap-3 mb-8">
+                        <FileText className="w-5 h-5 text-white/90" />
+                        <h3 className="text-2xl font-semibold tracking-tight text-[var(--text-primary)]">Offer Constructor</h3>
+                      </div>
+
+                      {!isGSTVerified && (
+                        <div className="flex items-start gap-4 p-5 rounded-lg mb-8 bg-black/40 backdrop-blur-md border border-white/10 text-white/90">
+                          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0 text-white/70" />
+                          <p className="text-[17px] font-medium leading-relaxed">Identity resolution required. Complete the sequential checks on the left to unlock cryptographic offer minting.</p>
+                        </div>
+                      )}
+
+                      <form className={`flex flex-col gap-6 ${!isGSTVerified ? 'opacity-30 pointer-events-none' : ''}`} onSubmit={handleCreateOffer}>
+                        <div>
+                          <label className="editorial-label block mb-3">Target Profile Title</label>
+                          <input
+                            type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required
+                            className="w-full editorial-input bg-black/20 border-white/20 text-white placeholder-white/40 focus:border-white focus:bg-black/40 backdrop-blur-md transition-all" placeholder="Protocol Engineer"
+                          />
+                        </div>
+                        <div>
+                          <label className="editorial-label block mb-3">Destination Address</label>
+                          <input
+                            type="text" value={form.wallet} onChange={(e) => setForm({ ...form, wallet: e.target.value })} required
+                            className="w-full editorial-input font-mono tracking-wider text-base bg-black/20 border-white/20 text-white placeholder-white/40 focus:border-white focus:bg-black/40 backdrop-blur-md transition-all" placeholder="0x..."
+                          />
+                        </div>
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <label className="editorial-label">Liquidity Lock (USDC)</label>
+                            <span className="editorial-label opacity-60">Floor: {ESCROW_FLOOR}</span>
+                          </div>
+                          <div className="relative">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[18px] font-semibold text-white/50">$</span>
+                            <input
+                              type="number" min={ESCROW_FLOOR} value={form.salary} onChange={(e) => setForm({ ...form, salary: e.target.value })} required
+                              className="w-full pl-9 editorial-input bg-black/20 border-white/20 text-white placeholder-white/40 focus:border-white focus:bg-black/40 backdrop-blur-md transition-all" placeholder={ESCROW_FLOOR.toString()}
+                            />
+                          </div>
+                        </div>
+
+                        <p className="text-[19px] leading-relaxed text-[var(--text-secondary)] pb-2">
+                          Constructing this offer permanently locks funds into resolving protocol escrows for a 30-day epoch.
+                        </p>
+
+                        <button
+                          type="submit"
+                          className={`w-full text-[#111] font-semibold text-[17px] tracking-wide py-4 rounded-full bg-white hover:bg-white/90 shadow-xl transition-all ${offerCreated ? 'opacity-60 scale-95' : 'hover:scale-[1.02]'}`}
+                        >
+                          {offerCreated ? 'Contract Minted' : 'Generate Hash & Mint'}
+                        </button>
+                      </form>
+                    </div>
+                  </div>
                 </motion.div>
-              )}
-            </motion.div>
-          )}
+              </div>
+            </div>
+          </ElectricBorder>
         </motion.div>
-
-        {/* RIGHT — Create Offer */}
-        <motion.div
-          initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} variants={float}
-          className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100"
-        >
-          <h3 className="text-2xl font-bold text-[#030D1E] mb-6 flex items-center gap-2">
-            <FileText className="w-6 h-6 text-[#FF8131]" /> Create trust offer
-          </h3>
-
-          {/* GST gate */}
-          {!isGSTVerified && (
-            <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800 mb-6">
-              <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0" />
-              <p>Complete the <span className="font-bold">3-Layer Trust Check</span> first to unlock offer creation.</p>
-            </div>
-          )}
-
-          <form className={`flex flex-col gap-4 ${!isGSTVerified ? 'opacity-50 pointer-events-none' : ''}`} onSubmit={handleCreateOffer}>
-            <div>
-              <label className="text-sm font-semibold text-[#6A737D] mb-1 block">Job title</label>
-              <input
-                type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#FF8131] transition-all"
-                placeholder="Protocol engineer"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-[#6A737D] mb-1 block">Candidate wallet address</label>
-              <input
-                type="text" value={form.wallet} onChange={(e) => setForm({ ...form, wallet: e.target.value })} required
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#FF8131] transition-all font-mono text-sm"
-                placeholder="0x..."
-              />
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-[#6A737D] mb-1 block">
-                Salary (USDC)
-                <span className="ml-2 text-xs text-orange-500 font-bold">
-                  Min escrow: ₹{ESCROW_FLOOR.toLocaleString()} USDC
-                </span>
-              </label>
-              <input
-                type="number" min={ESCROW_FLOOR} value={form.salary} onChange={(e) => setForm({ ...form, salary: e.target.value })} required
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#FF8131] transition-all"
-                placeholder={ESCROW_FLOOR.toString()}
-              />
-            </div>
-
-            {/* Escrow info */}
-            <div className="flex items-start gap-3 p-4 rounded-xl bg-orange-50 border border-orange-100 text-sm text-orange-800">
-              <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0" />
-              <p>
-                <span className="font-bold">Rs. 5,000 USDC</span> will be escrowed in the smart contract. If the company ghosts, funds are automatically released to the candidate after a 30-day dispute window.
-              </p>
-            </div>
-
-            <button
-              type="submit"
-              className={`mt-2 py-4 rounded-full font-bold text-lg transition-colors shadow-lg cursor-pointer border-none flex items-center justify-center gap-2 ${
-                offerCreated
-                  ? 'bg-[#109856] text-white'
-                  : 'bg-[#FF8131] text-white hover:bg-[#E06D22]'
-              }`}
-            >
-              {offerCreated ? (
-                <><CheckCircle2 className="w-5 h-5" /> Offer created</>
-              ) : (
-                <><Send className="w-5 h-5" /> Generate trust offer</>
-              )}
-            </button>
-          </form>
-
-          {/* Mini Stats */}
-          <div className="grid grid-cols-2 gap-3 mt-6">
-            <motion.div whileHover={{ y: -5 }} className="bg-gray-50 rounded-xl p-4 text-center border border-gray-100 cursor-default">
-              <TrendingUp className="w-5 h-5 text-[#FF8131] mx-auto mb-1" />
-              <p className="text-xs text-[#6A737D] font-semibold">Offers created</p>
-              <p className="text-2xl font-extrabold text-[#030D1E]">1,247</p>
-            </motion.div>
-            <motion.div whileHover={{ y: -5 }} className="bg-gray-50 rounded-xl p-4 text-center border border-gray-100 cursor-default">
-              <CheckCircle2 className="w-5 h-5 mx-auto mb-1" style={{ color: '#109856' }} />
-              <p className="text-xs text-[#6A737D] font-semibold">Accepted</p>
-              <p className="text-2xl font-extrabold text-[#030D1E]">1,103</p>
-            </motion.div>
-          </div>
-        </motion.div>
-      </div>
+      </motion.div>
     </section>
   );
 };

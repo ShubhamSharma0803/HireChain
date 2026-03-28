@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from google import genai
+from groq import Groq
 from web3 import Web3
 from jose import jwt, JWTError
 from database import (
@@ -53,9 +53,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize the Gemini Client
-api_key = os.getenv("GEMINI_API_KEY")
-client = genai.Client(api_key=api_key)
+# Initialize the Groq Client
+api_key = os.getenv("GROQ_API_KEY")
+client = Groq(api_key=api_key) if api_key and api_key != "YOUR_API_KEY_HERE" else None
 
 # ---------------------------------------------------------------------------
 # Web3 connection to deployed HireChain contract on Sepolia
@@ -146,23 +146,23 @@ async def verify_company(req: CompanyVerifyRequest):
             }
         )
 
-    # --- Layer 2: Gemini AI analysis – entity type inference from GST pattern ---
-    gemini_analysis = "Gemini API key not configured – skipping AI layer."
+    # --- Layer 2: Groq AI analysis – entity type inference from GST pattern ---
+    ai_analysis = "Groq API key not configured – skipping AI layer."
     try:
-        if api_key and api_key != "YOUR_API_KEY_HERE":
+        if client:
             prompt = (
                 f"Analyze this Indian GST number: {gst}. "
                 "Based on the pattern, identify: 1) The state code, "
                 "2) The PAN-based entity segment, 3) Whether this likely belongs to "
                 "a Company, LLP, Individual, or Trust. Return a short structured analysis."
             )
-            response = client.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=prompt,
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": prompt}],
             )
-            gemini_analysis = response.text
+            ai_analysis = response.choices[0].message.content
     except Exception as e:
-        gemini_analysis = f"Gemini analysis unavailable: {str(e)}"
+        ai_analysis = f"Groq analysis unavailable: {str(e)}"
 
     # --- Layer 3: Mock MCA21 database lookup for incorporation age ---
     mca_record = MOCK_MCA21_DB.get(gst)
@@ -172,7 +172,7 @@ async def verify_company(req: CompanyVerifyRequest):
             trust_score=15,
             details={
                 "layer_1_format": "PASS",
-                "layer_2_gemini": gemini_analysis,
+                "layer_2_ai": ai_analysis,
                 "layer_3_mca21": "NOT FOUND – GST not present in MCA21 registry.",
                 "recommendation": "Manual review required.",
             }
@@ -191,7 +191,7 @@ async def verify_company(req: CompanyVerifyRequest):
 
     result_details = {
         "layer_1_format": "PASS",
-        "layer_2_gemini": gemini_analysis,
+        "layer_2_ai": ai_analysis,
         "layer_3_mca21": {
             "entity_name": mca_record["entity_name"],
             "entity_type": mca_record["entity_type"],
@@ -307,39 +307,39 @@ Return your analysis in this EXACT format:
 {resume}
 --- RESUME END ---"""
 
-    # Call Gemini for analysis
-    gemini_verdict = None
-    trust_score = 50  # default mid-range if Gemini is unavailable
+    # Call Groq for analysis
+    ai_verdict = None
+    trust_score = 50  # default mid-range if Groq is unavailable
 
     try:
-        if api_key and api_key != "YOUR_API_KEY_HERE":
-            response = client.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=prompt,
+        if client:
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": prompt}],
             )
-            gemini_verdict = response.text
+            ai_verdict = response.choices[0].message.content
 
-            # Parse trust score from Gemini response
-            score_match = re.search(r"TRUST_SCORE:\s*(\d+)", gemini_verdict)
+            # Parse trust score from Groq response
+            score_match = re.search(r"TRUST_SCORE:\s*(\d+)", ai_verdict)
             if score_match:
                 trust_score = min(100, max(0, int(score_match.group(1))))
 
-            claims_match = re.search(r"IMPOSSIBLE_CLAIMS_FOUND:\s*(Yes|No)", gemini_verdict, re.IGNORECASE)
+            claims_match = re.search(r"IMPOSSIBLE_CLAIMS_FOUND:\s*(Yes|No)", ai_verdict, re.IGNORECASE)
             claims_found = claims_match.group(1).lower() == "yes" if claims_match else False
         else:
-            gemini_verdict = "Gemini API key not configured. Set GEMINI_API_KEY in .env to enable AI resume analysis."
+            ai_verdict = "Groq API key not configured. Set GROQ_API_KEY in .env to enable AI resume analysis."
             claims_found = False
     except Exception as e:
-        gemini_verdict = f"Gemini analysis failed: {str(e)}"
+        ai_verdict = f"Groq analysis failed: {str(e)}"
         claims_found = False
 
     return VerificationResult(
         status=not claims_found,
         trust_score=trust_score,
         details={
-            "analysis_engine": "Gemini 2.0 Flash",
+            "analysis_engine": "Groq LLaMA 3.3 70B",
             "impossible_claims_found": claims_found,
-            "gemini_full_analysis": gemini_verdict,
+            "ai_full_analysis": ai_verdict,
             "resume_length_chars": len(resume),
         }
     )

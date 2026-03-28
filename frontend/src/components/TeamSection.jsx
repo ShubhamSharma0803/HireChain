@@ -1,108 +1,102 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Code2, Server, Presentation, ExternalLink, Globe, AtSign } from 'lucide-react';
 
-const float = {
-  hidden: { opacity: 0, y: 40 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } },
-};
-
-const team = [
+const teamMembers = [
   {
-    name: 'Sanyam Nandal',
-    role: 'Frontend & Smart Contracts',
-    desc: 'Architecting the glassmorphic UI and integrating ethers.js for trustless hiring flows.',
-    icon: Code2,
-    gradient: 'from-orange-50 to-amber-50',
-    border: 'border-orange-100',
-    iconBg: 'bg-orange-50 text-[#FF8131]',
+    name: 'Sanyam',
+    role: 'Full Stack & AI Engineer',
     links: { github: '#', linkedin: '#', twitter: '#' },
   },
   {
     name: 'Shubham',
-    role: 'Backend & AI Engine',
-    desc: 'Building the MCA21 verification pipeline, DigiLocker integration, and Claude-powered consistency scoring.',
-    icon: Server,
-    gradient: 'from-blue-50 to-indigo-50',
-    border: 'border-blue-100',
-    iconBg: 'bg-blue-50 text-blue-600',
+    role: 'Blockchain & Backend Engineer',
     links: { github: '#', linkedin: '#', twitter: '#' },
   },
   {
     name: 'Aman',
-    role: 'Presentation & Strategy',
-    desc: 'Crafting the product narrative, investor deck, and go-to-market strategy for the HireChain protocol.',
-    icon: Presentation,
-    gradient: 'from-green-50 to-emerald-50',
-    border: 'border-green-100',
-    iconBg: 'bg-green-50 text-green-600',
+    role: 'Frontend & UI Developer',
     links: { github: '#', linkedin: '#', twitter: '#' },
   },
 ];
 
+const container = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.08 } }
+};
+
+const item = {
+  hidden: { opacity: 0, y: 32 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] } }
+};
+
 const TeamSection = () => {
   return (
-    <section id="team" className="relative py-28 px-6 md:px-12 max-w-7xl mx-auto">
-      <motion.div
-        initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }} variants={float}
-        className="text-center mb-16"
-      >
-        <h2 className="text-4xl md:text-5xl font-extrabold text-[#030D1E] tracking-tight">Built by</h2>
-        <p className="mt-4 text-lg text-[#6A737D] max-w-xl mx-auto leading-relaxed">
-          Three builders removing trust friction from hiring.
-        </p>
-      </motion.div>
+    <section id="team" className="relative pt-32 pb-24 w-full flex flex-col items-center">
+      
+      {/* Team Grid */}
+      <div className="w-full max-w-[1200px] px-6 md:px-12 mb-32 z-10">
+        <motion.div
+          initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.3 }} transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          className="text-center mb-24"
+        >
+          <span className="editorial-label mb-4 block">The Builders</span>
+          <h2 className="editorial-heading">Team HireChain</h2>
+        </motion.div>
 
-      <div className="grid md:grid-cols-3 gap-8">
-        {team.map((member, i) => {
-          const Icon = member.icon;
-          return (
+        <motion.div
+           variants={container} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.1 }}
+           className="grid md:grid-cols-3 gap-6"
+        >
+          {teamMembers.map((member, i) => (
             <motion.div
+              variants={item}
               key={i}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, amount: 0.2 }}
-              variants={float}
-              whileHover={{ y: -8 }}
-              className={`relative bg-gradient-to-br ${member.gradient} rounded-3xl p-8 border ${member.border} shadow-sm cursor-default overflow-hidden`}
+              className="editorial-card-interactive editorial-card p-10 flex flex-col items-start justify-center text-left"
             >
-              {/* Decorative circle */}
-              <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full bg-white/30 pointer-events-none" />
+              <img 
+                src={`https://api.dicebear.com/9.x/avataaars/svg?seed=${member.name}&backgroundColor=FAFAFA`} 
+                alt={member.name} 
+                className="w-16 h-16 rounded-full bg-[var(--bg-color)] border border-[var(--border-subtle)] mb-8 object-cover" 
+              />
+              <h3 className="text-2xl font-semibold tracking-tight text-[var(--text-primary)] mb-1">{member.name}</h3>
+              <p className="text-[19px] text-[var(--text-secondary)] mb-8">{member.role}</p>
 
-              <div className={`w-14 h-14 rounded-2xl ${member.iconBg} flex items-center justify-center mb-5`}>
-                <Icon className="w-7 h-7" />
-              </div>
-
-              <h3 className="text-2xl font-extrabold text-[#030D1E] tracking-tight">{member.name}</h3>
-              <p className="text-sm font-bold text-[#FF8131] mt-1 mb-4">{member.role}</p>
-              <p className="text-[#6A737D] leading-relaxed text-sm">{member.desc}</p>
-
-              {/* Social Links */}
-              <div className="flex gap-3 mt-6">
-                <a href={member.links.github} className="p-2 rounded-xl bg-white/70 text-[#6A737D] hover:text-[#030D1E] transition-colors">
-                  <ExternalLink className="w-4 h-4" />
-                </a>
-                <a href={member.links.linkedin} className="p-2 rounded-xl bg-white/70 text-[#6A737D] hover:text-[#030D1E] transition-colors">
-                  <Globe className="w-4 h-4" />
-                </a>
-                <a href={member.links.twitter} className="p-2 rounded-xl bg-white/70 text-[#6A737D] hover:text-[#030D1E] transition-colors">
-                  <AtSign className="w-4 h-4" />
-                </a>
+              <div className="flex items-center gap-4 mt-auto">
+                <a href={member.links.github} className="editorial-label text-[19px] hover:text-[var(--text-primary)] transition-colors">GH</a>
+                <a href={member.links.linkedin} className="editorial-label text-[19px] hover:text-[var(--text-primary)] transition-colors">IN</a>
+                <a href={member.links.twitter} className="editorial-label text-[19px] hover:text-[var(--text-primary)] transition-colors">TW</a>
               </div>
             </motion.div>
-          );
-        })}
+          ))}
+        </motion.div>
       </div>
 
-      {/* Footer */}
-      <motion.div
-        initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.5 }} variants={float}
-        className="mt-28 text-center"
+      {/* ABOUT / FOOTER SECTION (Editorial constraint) */}
+      <motion.footer
+        initial={{ opacity: 0, y: 24 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.3 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
+        className="w-full max-w-[600px] px-6 text-left mx-auto pt-24 border-t border-[var(--border-card)]"
       >
-        <p className="text-sm text-[#6A737D]">
-          © {new Date().getFullYear()} HireChain Protocol · Built on Ethereum · Trustless by design
+        <span className="editorial-label block mb-6">About the project</span>
+        <h2 className="text-[38px] font-semibold tracking-tight leading-[1.1] text-[var(--text-primary)] mb-6">
+          Bringing true cryptographic accountability to the recruitment industry, one block at a time.
+        </h2>
+        <p className="editorial-body text-[19px] mb-16">
+          HireChain represents a fundamental shift in how trust is brokered. By enforcing escrow validations directly on-chain and mapping them to real-world government registries, we eliminate the economic incentive to defraud or ghost.
         </p>
-      </motion.div>
+
+        <div className="flex items-center justify-between border-t border-[rgba(0,0,0,0.04)] pt-8">
+          <span className="editorial-label" style={{ color: 'var(--text-secondary)' }}>HireChain © 2026</span>
+          <div className="flex items-center gap-6">
+            <button className="editorial-label hover:text-[var(--text-primary)] transition-colors bg-transparent border-none cursor-pointer" style={{ color: 'var(--text-secondary)' }}>Protocol Docs</button>
+            <button className="editorial-label hover:text-[var(--text-primary)] transition-colors bg-transparent border-none cursor-pointer" style={{ color: 'var(--text-secondary)' }}>Smart Contract</button>
+          </div>
+        </div>
+      </motion.footer>
+
     </section>
   );
 };

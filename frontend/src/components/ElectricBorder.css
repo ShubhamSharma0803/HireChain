@@ -1,0 +1,37 @@
+.electric-border {
+  position: relative;
+  border-radius: calc(var(--borderRadius, 24) * 1px);
+}
+.eb-canvas-container {
+  position: absolute;
+  top: -60px;
+  left: -60px;
+  width: calc(100% + 120px);
+  height: calc(100% + 120px);
+  pointer-events: none;
+  z-index: -1;
+}
+.eb-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.eb-layers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: calc(var(--borderRadius, 24) * 1px);
+  overflow: hidden;
+  z-index: -1;
+}
+.eb-glow-1, .eb-glow-2, .eb-background-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: calc(var(--borderRadius, 24) * 1px);
+}
+.eb-content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+}
