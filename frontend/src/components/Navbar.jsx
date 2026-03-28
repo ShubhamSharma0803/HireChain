@@ -1,10 +1,11 @@
 import React, { useContext } from 'react';
 import { motion } from 'framer-motion';
-import { Link as LinkIcon, Wallet, Fingerprint } from 'lucide-react';
+import { Link as LinkIcon, Wallet, Fingerprint, LogIn, LogOut } from 'lucide-react';
 import { AppContext } from '../App';
+import AuthModal from './AuthModal';
 
 const Navbar = () => {
-  const { userWallet, connectWallet, isAadhaarVerified, addToast } = useContext(AppContext);
+  const { userWallet, connectWallet, isAadhaarVerified, addToast, isLoggedIn, showAuthModal, setShowAuthModal, logout } = useContext(AppContext);
 
   const handleKYC = () => {
     addToast('Aadhaar KYC via Signzy / Surepass — scroll to the Candidate section below.', 'success');
@@ -68,7 +69,33 @@ const Navbar = () => {
           <Wallet className="w-4 h-4" />
           {userWallet ? fmt(userWallet) : 'Connect Wallet'}
         </motion.button>
+
+        {/* Auth Button */}
+        {isLoggedIn ? (
+          <motion.button
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={logout}
+            className="flex items-center gap-2 bg-red-500/90 text-white text-sm font-bold px-4 py-2.5 rounded-full hover:bg-red-600 transition-colors shadow-lg shadow-red-500/20 cursor-pointer border-none"
+          >
+            <LogOut className="w-4 h-4" />
+            Logout
+          </motion.button>
+        ) : (
+          <motion.button
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => setShowAuthModal(true)}
+            className="flex items-center gap-2 bg-[#030D1E] text-white text-sm font-bold px-4 py-2.5 rounded-full hover:bg-[#1a2744] transition-colors shadow-lg shadow-black/20 cursor-pointer border-none"
+          >
+            <LogIn className="w-4 h-4" />
+            Sign In
+          </motion.button>
+        )}
       </div>
+
+      {/* Auth Modal */}
+      {showAuthModal && <AuthModal />}
     </motion.nav>
   );
 };

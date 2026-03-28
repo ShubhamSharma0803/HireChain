@@ -1,4 +1,4 @@
-import React, { useState, useCallback, createContext } from 'react';
+import React, { useState, useCallback, useEffect, createContext } from 'react';
 
 import Unveil from './components/Unveil';
 import Navbar from './components/Navbar';
@@ -14,6 +14,21 @@ export const AppContext = createContext(null);
 
 function App() {
   const [unveiled, setUnveiled] = useState(false);
+
+  /* ── Auth State ─────────────────────────────────────────── */
+  const [authToken, setAuthToken] = useState(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const isLoggedIn = !!authToken;
+
+  useEffect(() => {
+    const stored = localStorage.getItem('hirechain_token');
+    if (stored) setAuthToken(stored);
+  }, []);
+
+  const logout = useCallback(() => {
+    localStorage.removeItem('hirechain_token');
+    setAuthToken(null);
+  }, []);
 
   /* ── Global State ───────────────────────────────────────── */
   const [userWallet, setUserWallet] = useState('');
@@ -58,6 +73,9 @@ function App() {
     gstTrustData, setGstTrustData,
     candidateData, setCandidateData,
     addToast,
+    authToken, setAuthToken, isLoggedIn,
+    showAuthModal, setShowAuthModal,
+    logout,
   };
 
   return (
