@@ -1,4 +1,4 @@
-import React, { useState, useContext, useRef } from 'react';
+import React, { useState, useContext, useRef, useEffect } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import Grainient from './Grainient';
 import {
@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import { checkResumeLogic } from '../utils/api';
 import { AppContext } from '../App';
+import { getOffer, acceptOffer, confirmJoining, reportBreach } from '../utils/contract';
+import OfferCard from './OfferCard';
 
 /* Verified badge — dark minimal mode */
 const VerifiedBadge = ({ label = 'Verified' }) => (
@@ -64,6 +66,69 @@ const CandidateSection = () => {
   const exitOpacity = useTransform(scrollYProgress, [0, 1], [1, 0.4]);
 
   /* ── API CALLS ────────────────────────────────── */
+  const [offer, setOffer] = useState(null);
+  const [offerLoading, setOfferLoading] = useState(false);
+
+  useEffect(() => {
+    // Poll the contract for offer ID 1
+    const fetchOffer = async () => {
+      try {
+        const o = await getOffer(1);
+        if (o && o.company !== "0x0000000000000000000000000000000000000000") {
+          setOffer(o);
+        }
+      } catch (e) {
+        // Ignore, offer might not exist
+      }
+    };
+    
+    // Check every 5 seconds
+    fetchOffer();
+    const interval = setInterval(fetchOffer, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleAccept = async (id) => {
+    setOfferLoading(true);
+    try {
+      await acceptOffer(id, offer.escrowAmount);
+      addToast('Offer accepted and escrow locked.', 'success');
+      const o = await getOffer(1);
+      setOffer(o);
+    } catch (err) {
+      addToast(err.message, 'error');
+    } finally {
+      setOfferLoading(false);
+    }
+  };
+
+  const handleConfirm = async (id) => {
+    setOfferLoading(true);
+    try {
+      await confirmJoining(id);
+      addToast('Joining confirmed. Waiting for company.', 'success');
+      const o = await getOffer(1);
+      setOffer(o);
+    } catch (err) {
+      addToast(err.message, 'error');
+    } finally {
+      setOfferLoading(false);
+    }
+  };
+
+  const handleBreach = async (id) => {
+    setOfferLoading(true);
+    try {
+      await reportBreach(id);
+      addToast('Breach reported. Escrow seized.', 'success');
+      const o = await getOffer(1);
+      setOffer(o);
+    } catch (err) {
+      addToast(err.message, 'error');
+    } finally {
+      setOfferLoading(false);
+    }
+  };
 
   const handleDigiLocker = async () => {
     setDigiLoading(true);
@@ -291,6 +356,28 @@ const CandidateSection = () => {
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* ACTIVE OFFERS SECTIONS BELOW GRID */}
+            <div className="mt-20 pt-10 border-t border-white/10">
+              <div className="flex items-center gap-4 mb-8">
+                <Briefcase className="w-6 h-6 text-white/90" />
+                <h3 className="text-[34px] font-semibold text-white tracking-tight">Active Protocol Offers</h3>
+              </div>
+              
+              {offer ? (
+                <OfferCard 
+                  offer={offer}
+                  onAccept={handleAccept}
+                  onConfirm={handleConfirm}
+                  onBreach={handleBreach}
+                  loading={offerLoading}
+                />
+              ) : (
+                <p className="text-white/50 bg-white/5 p-6 rounded-xl border border-white/5 text-center editorial-body">
+                  Awaiting cryptographically secure offer from employer. Minting...
+                </p>
+              )}
             </div>
           </motion.div>
         </motion.div>

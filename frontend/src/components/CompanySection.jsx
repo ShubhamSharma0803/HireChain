@@ -6,7 +6,8 @@ import {
   ShieldCheck,
   CheckCircle2, AlertTriangle, FileText, Loader2,
 } from 'lucide-react';
-import { ESCROW_FLOOR } from '../utils/contract';
+import { ESCROW_FLOOR, createOffer, CONTRACT_ADDRESS } from '../utils/contract';
+import QRCodeDisplay from './QRCodeDisplay';
 import { verifyGST } from '../utils/api';
 import { AppContext } from '../App';
 
@@ -79,14 +80,25 @@ const CompanySection = () => {
     }
   };
 
-  const handleCreateOffer = (e) => {
+  const handleCreateOffer = async (e) => {
     e.preventDefault();
     if (!isGSTVerified) { addToast('Verify details first.', 'error'); return; }
     const salaryNum = Number(form.salary);
     if (salaryNum < ESCROW_FLOOR) { addToast(`Minimum escrow is ₹${ESCROW_FLOOR.toLocaleString()} USDC`, 'error'); return; }
     if (!userWallet) { addToast('Connect your wallet first.', 'error'); return; }
-    setOfferCreated(true);
-    addToast(`Offer generated: ${form.title} — ₹${salaryNum.toLocaleString()} USDC escrowed`, 'success');
+    
+    setLoading(true);
+    try {
+      // Joining timestamp 30 days into the future
+      const joiningDate = Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60;
+      await createOffer(form.wallet, form.title, salaryNum, joiningDate);
+      setOfferCreated(true);
+      addToast(`Offer generated: ${form.title} — ₹${salaryNum.toLocaleString()} USDC escrowed`, 'success');
+    } catch (err) {
+      addToast(err.message || 'Transaction failed.', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const mca = gstTrustData?.details?.layer_3_mca21;
@@ -168,7 +180,7 @@ const CompanySection = () => {
                           <label className="editorial-label block mb-3">GST Number / Signature</label>
                           <input
                             type="text" value={gst} onChange={(e) => setGst(e.target.value)} required
-                            className="w-full editorial-input font-mono uppercase tracking-wider bg-black/20 border-white/20 text-white placeholder-white/40 focus:border-white focus:bg-black/40 backdrop-blur-md transition-all"
+                            className="w-full editorial-input font-mono uppercase tracking-wider bg-black/20 border-white/20 !text-black !placeholder-black/60 focus:border-white focus:bg-black/40 backdrop-blur-md transition-all"
                             placeholder="22AAAAA0000A1Z5"
                           />
                         </div>
@@ -239,46 +251,53 @@ const CompanySection = () => {
                         </div>
                       )}
 
-                      <form className={`flex flex-col gap-6 ${!isGSTVerified ? 'opacity-30 pointer-events-none' : ''}`} onSubmit={handleCreateOffer}>
-                        <div>
-                          <label className="editorial-label block mb-3">Target Profile Title</label>
-                          <input
-                            type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required
-                            className="w-full editorial-input bg-black/20 border-white/20 text-white placeholder-white/40 focus:border-white focus:bg-black/40 backdrop-blur-md transition-all" placeholder="Protocol Engineer"
-                          />
+                      {offerCreated ? (
+                        <div className="mt-4 fade-in">
+                          <QRCodeDisplay offerId={1} contractAddress={CONTRACT_ADDRESS} />
                         </div>
-                        <div>
-                          <label className="editorial-label block mb-3">Destination Address</label>
-                          <input
-                            type="text" value={form.wallet} onChange={(e) => setForm({ ...form, wallet: e.target.value })} required
-                            className="w-full editorial-input font-mono tracking-wider text-base bg-black/20 border-white/20 text-white placeholder-white/40 focus:border-white focus:bg-black/40 backdrop-blur-md transition-all" placeholder="0x..."
-                          />
-                        </div>
-                        <div>
-                          <div className="flex items-center justify-between mb-3">
-                            <label className="editorial-label">Liquidity Lock (USDC)</label>
-                            <span className="editorial-label opacity-60">Floor: {ESCROW_FLOOR}</span>
-                          </div>
-                          <div className="relative">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[18px] font-semibold text-white/50">$</span>
+                      ) : (
+                        <form className={`flex flex-col gap-6 ${!isGSTVerified ? 'opacity-30 pointer-events-none' : ''}`} onSubmit={handleCreateOffer}>
+                          <div>
+                            <label className="editorial-label block mb-3">Target Profile Title</label>
                             <input
-                              type="number" min={ESCROW_FLOOR} value={form.salary} onChange={(e) => setForm({ ...form, salary: e.target.value })} required
-                              className="w-full pl-9 editorial-input bg-black/20 border-white/20 text-white placeholder-white/40 focus:border-white focus:bg-black/40 backdrop-blur-md transition-all" placeholder={ESCROW_FLOOR.toString()}
+                              type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required
+                              className="w-full editorial-input bg-black/20 border-white/20 !text-black !placeholder-black/60 focus:border-white focus:bg-black/40 backdrop-blur-md transition-all" placeholder="Protocol Engineer"
                             />
                           </div>
-                        </div>
-
-                        <p className="text-[19px] leading-relaxed text-[var(--text-secondary)] pb-2">
-                          Constructing this offer permanently locks funds into resolving protocol escrows for a 30-day epoch.
-                        </p>
-
-                        <button
-                          type="submit"
-                          className={`w-full text-[#111] font-semibold text-[17px] tracking-wide py-4 rounded-full bg-white hover:bg-white/90 shadow-xl transition-all ${offerCreated ? 'opacity-60 scale-95' : 'hover:scale-[1.02]'}`}
-                        >
-                          {offerCreated ? 'Contract Minted' : 'Generate Hash & Mint'}
-                        </button>
-                      </form>
+                          <div>
+                            <label className="editorial-label block mb-3">Destination Address</label>
+                            <input
+                              type="text" value={form.wallet} onChange={(e) => setForm({ ...form, wallet: e.target.value })} required
+                              className="w-full editorial-input font-mono tracking-wider text-base bg-black/20 border-white/20 !text-black !placeholder-black/60 focus:border-white focus:bg-black/40 backdrop-blur-md transition-all" placeholder="0x..."
+                            />
+                          </div>
+                          <div>
+                            <div className="flex items-center justify-between mb-3">
+                              <label className="editorial-label">Liquidity Lock (USDC)</label>
+                              <span className="editorial-label opacity-60">Floor: {ESCROW_FLOOR}</span>
+                            </div>
+                            <div className="relative">
+                              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[18px] font-semibold text-white/50">$</span>
+                              <input
+                                type="number" min={ESCROW_FLOOR} value={form.salary} onChange={(e) => setForm({ ...form, salary: e.target.value })} required
+                                className="w-full pl-9 editorial-input bg-black/20 border-white/20 !text-black !placeholder-black/60 focus:border-white focus:bg-black/40 backdrop-blur-md transition-all" placeholder={ESCROW_FLOOR.toString()}
+                              />
+                            </div>
+                          </div>
+  
+                          <p className="text-[19px] leading-relaxed text-[var(--text-secondary)] pb-2">
+                            Constructing this offer permanently locks funds into resolving protocol escrows for a 30-day epoch.
+                          </p>
+  
+                          <button
+                            type="submit"
+                            disabled={loading}
+                            className={`w-full text-[#111] font-semibold text-[17px] tracking-wide py-4 rounded-full bg-white hover:bg-white/90 shadow-xl transition-all ${loading ? 'opacity-60 scale-95' : 'hover:scale-[1.02]'}`}
+                          >
+                            {loading ? 'Minting Contract...' : 'Generate Hash & Mint'}
+                          </button>
+                        </form>
+                      )}
                     </div>
                   </div>
                 </motion.div>

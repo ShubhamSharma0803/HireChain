@@ -5,16 +5,19 @@ const teamMembers = [
   {
     name: 'Sanyam',
     role: 'Full Stack & AI Engineer',
+    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?fit=crop&w=400&h=400',
     links: { github: '#', linkedin: '#', twitter: '#' },
   },
   {
     name: 'Shubham',
     role: 'Blockchain & Backend Engineer',
+    image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?fit=crop&w=400&h=400',
     links: { github: '#', linkedin: '#', twitter: '#' },
   },
   {
     name: 'Aman',
     role: 'Frontend & UI Developer',
+    image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?fit=crop&w=400&h=400',
     links: { github: '#', linkedin: '#', twitter: '#' },
   },
 ];
@@ -31,10 +34,16 @@ const item = {
 
 const TeamSection = () => {
   return (
-    <section id="team" className="relative pt-32 pb-24 w-full flex flex-col items-center">
+    <section id="team" className="relative pt-32 pb-24 w-full flex flex-col items-center overflow-hidden">
       
+      {/* Ambient Orbs for Glassmorphism Refraction */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[1200px] h-[800px] pointer-events-none z-0">
+        <div className="absolute top-10 left-20 w-[500px] h-[500px] bg-[#FF8131] rounded-full filter blur-[140px] opacity-10 animate-pulse"></div>
+        <div className="absolute bottom-10 right-20 w-[500px] h-[500px] bg-[#3A4A40] rounded-full filter blur-[140px] opacity-10 animate-pulse" style={{ animationDelay: '2s' }}></div>
+      </div>
+
       {/* Team Grid */}
-      <div className="w-full max-w-[1200px] px-6 md:px-12 mb-32 z-10">
+      <div className="w-full max-w-[1200px] px-6 md:px-12 mb-32 z-10 relative">
         <motion.div
           initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.3 }} transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
@@ -46,19 +55,25 @@ const TeamSection = () => {
 
         <motion.div
            variants={container} initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.1 }}
-           className="grid md:grid-cols-3 gap-6"
+           className="grid md:grid-cols-3 gap-8"
         >
           {teamMembers.map((member, i) => (
             <motion.div
               variants={item}
               key={i}
-              className="editorial-card-interactive editorial-card p-10 flex flex-col items-start justify-center text-left"
+              className="editorial-card-interactive p-10 flex flex-col items-start justify-center text-left relative overflow-hidden bg-white/40 backdrop-blur-2xl border border-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.04)] shadow-inner rounded-[24px]"
             >
-              <img 
-                src={`https://api.dicebear.com/9.x/avataaars/svg?seed=${member.name}&backgroundColor=FAFAFA`} 
-                alt={member.name} 
-                className="w-16 h-16 rounded-full bg-[var(--bg-color)] border border-[var(--border-subtle)] mb-8 object-cover" 
-              />
+              {/* Subtle glass reflection highlight */}
+              <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/80 to-transparent pointer-events-none" />
+
+              <div className="relative mb-8">
+                <div className="absolute inset-0 bg-gradient-to-br from-[#FF8131] to-[#3A4A40] rounded-full blur-md opacity-20 translate-y-2"></div>
+                <img 
+                  src={member.image} 
+                  alt={member.name} 
+                  className="relative w-20 h-20 rounded-full border-[3px] border-white shadow-sm object-cover" 
+                />
+              </div>
               <h3 className="text-2xl font-semibold tracking-tight text-[var(--text-primary)] mb-1">{member.name}</h3>
               <p className="text-[19px] text-[var(--text-secondary)] mb-8">{member.role}</p>
 
