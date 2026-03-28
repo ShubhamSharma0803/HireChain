@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Python
+backend/venv/
+backend/__pycache__/
+__pycache__/
+*.pyc
+
+# Environment secrets (NEVER commit these)
+.env
+*.env
+
+# Hardhat build artifacts
+blockchain/artifacts/
+blockchain/cache/
+
+# Misc
+.DS_Store
+*.log
