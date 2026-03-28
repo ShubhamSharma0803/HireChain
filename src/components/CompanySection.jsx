@@ -1,42 +1,74 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { motion } from 'framer-motion';
 import {
   Building2, ShieldCheck, BarChart3, Send,
-  CheckCircle2, AlertTriangle, FileText, TrendingUp,
+  CheckCircle2, AlertTriangle, FileText, TrendingUp, Loader2,
 } from 'lucide-react';
 import { ESCROW_FLOOR } from '../utils/contract';
+import { verifyGST } from '../utils/api';
+import { AppContext } from '../App';
 
 const float = {
   hidden: { opacity: 0, y: 40 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } },
+  visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 80, damping: 14 } },
 };
 
 const CompanySection = () => {
-  const [gst, setGst] = useState('');
-  const [cin, setCin] = useState('');
-  const [trustResult, setTrustResult] = useState(null);
-  const [form, setForm] = useState({ title: '', wallet: '', salary: '' });
+  const { isGSTVerified, setIsGSTVerified, setGstTrustData, gstTrustData, addToast, userWallet } = useContext(AppContext);
 
-  const handleTrustCheck = (e) => {
+  const [gst, setGst] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({ title: '', wallet: '', salary: '' });
+  const [offerCreated, setOfferCreated] = useState(false);
+
+  /* ── Call backend: POST /verify-company ──────────────────── */
+  const handleTrustCheck = async (e) => {
     e.preventDefault();
-    // Mock AI Trust Score result
-    setTrustResult({
-      companyAge: 12,
-      taxRating: 'A+',
-      registrationStatus: 'Active',
-      aiScore: 94,
-    });
+    if (!gst.trim()) { addToast('Please enter a GST number.', 'error'); return; }
+    setLoading(true);
+    try {
+      const result = await verifyGST(gst.trim());
+      setGstTrustData(result);
+      if (result.status) {
+        setIsGSTVerified(true);
+        addToast(`MCA21 matched — Trust score: ${result.trust_score}%`, 'success');
+      } else {
+        setIsGSTVerified(false);
+        const reason = result.details?.reason || result.details?.layer_3_mca21 || 'GST not found in MCA21 registry.';
+        addToast(`GST verification failed: ${typeof reason === 'string' ? reason : 'Not found in registry'}`, 'error');
+      }
+    } catch (err) {
+      addToast(err.message || 'GST verification failed.', 'error');
+      setIsGSTVerified(false);
+    } finally {
+      setLoading(false);
+    }
   };
 
+  /* ── Create Offer (with escrow floor) ───────────────────── */
   const handleCreateOffer = (e) => {
     e.preventDefault();
-    const salaryNum = Number(form.salary);
-    if (salaryNum < ESCROW_FLOOR) {
-      alert(`Minimum escrow is ₹${ESCROW_FLOOR.toLocaleString()} USDC`);
+    if (!isGSTVerified) {
+      addToast('Please verify GST first.', 'error');
       return;
     }
-    alert(`Offer created for ${form.title} — ₹${salaryNum.toLocaleString()} USDC escrowed.`);
+    const salaryNum = Number(form.salary);
+    if (salaryNum < ESCROW_FLOOR) {
+      addToast(`Minimum escrow is ₹${ESCROW_FLOOR.toLocaleString()} USDC`, 'error');
+      return;
+    }
+    if (!userWallet) {
+      addToast('Please connect your wallet first.', 'error');
+      return;
+    }
+    // ✅ Offer created — in production this calls createOffer() from contract.js
+    setOfferCreated(true);
+    addToast(`Offer created: ${form.title} — ₹${salaryNum.toLocaleString()} USDC escrowed`, 'success');
   };
+
+  /* ── Extract trust details from backend response ────────── */
+  const mca = gstTrustData?.details?.layer_3_mca21;
+  const trustScore = gstTrustData?.trust_score;
 
   return (
     <section id="company" className="relative py-28 px-6 md:px-12 max-w-7xl mx-auto">
@@ -60,15 +92,19 @@ const CompanySection = () => {
         className="flex flex-wrap justify-center gap-3 mb-12"
       >
         {[
-          'Layer 1: GST & MCA21 Cross-Check',
-          'Layer 2: AI Trust Score',
+          { label: 'Layer 1: GST & MCA21 Cross-Check', active: isGSTVerified },
+          { label: 'Layer 2: AI Trust Score', active: !!gstTrustData?.details?.layer_2_gemini },
         ].map((layer, i) => (
           <motion.span
             key={i} whileHover={{ y: -5 }}
             className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border cursor-default"
-            style={{ color: '#109856', backgroundColor: '#e6f4ed', borderColor: '#b0dfc4' }}
+            style={
+              layer.active
+                ? { color: '#109856', backgroundColor: '#e6f4ed', borderColor: '#b0dfc4' }
+                : { color: '#6A737D', backgroundColor: '#f3f4f6', borderColor: '#e5e7eb' }
+            }
           >
-            <CheckCircle2 className="w-3 h-3" /> {layer}
+            <CheckCircle2 className="w-3 h-3" /> {layer.label}
           </motion.span>
         ))}
       </motion.div>
@@ -91,48 +127,82 @@ const CompanySection = () => {
                 placeholder="22AAAAA0000A1Z5"
               />
             </div>
-            <div>
-              <label className="text-sm font-semibold text-[#6A737D] mb-1 block">MCA21 CIN</label>
-              <input
-                type="text" value={cin} onChange={(e) => setCin(e.target.value)} required
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#FF8131] transition-all"
-                placeholder="U72200MH2009PTC123456"
-              />
-            </div>
-            <button type="submit" className="mt-2 bg-[#030D1E] text-white py-3.5 rounded-full font-bold hover:bg-gray-800 transition-colors cursor-pointer border-none">
-              Run trust verification
+            <button
+              type="submit" disabled={loading}
+              className={`mt-2 py-3.5 rounded-full font-bold transition-colors cursor-pointer border-none flex items-center justify-center gap-2 ${
+                loading ? 'bg-gray-400 text-gray-200' : 'bg-[#030D1E] text-white hover:bg-gray-800'
+              }`}
+            >
+              {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> Verifying…</> : 'Run trust verification'}
             </button>
           </form>
 
-          {/* AI Trust Score Card — uses #109856 green */}
-          {trustResult && (
+          {/* Live API Result — AI Trust Score Card */}
+          {gstTrustData && (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: 'spring', stiffness: 200, damping: 18 }}
               className="mt-6 rounded-2xl p-6 border"
-              style={{ background: 'linear-gradient(135deg, #e6f4ed, #f0faf5)', borderColor: '#b0dfc4' }}
+              style={
+                isGSTVerified
+                  ? { background: 'linear-gradient(135deg, #e6f4ed, #f0faf5)', borderColor: '#b0dfc4' }
+                  : { background: 'linear-gradient(135deg, #fef2f2, #fff5f5)', borderColor: '#fecaca' }
+              }
             >
               <div className="flex items-center justify-between mb-4">
                 <h4 className="text-lg font-bold text-[#030D1E] flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5" style={{ color: '#109856' }} /> AI trust score
+                  <BarChart3 className="w-5 h-5" style={{ color: isGSTVerified ? '#109856' : '#ef4444' }} />
+                  {isGSTVerified ? 'AI trust score' : 'Verification failed'}
                 </h4>
-                <span className="text-3xl font-extrabold" style={{ color: '#109856' }}>{trustResult.aiScore}%</span>
+                <span className="text-3xl font-extrabold" style={{ color: isGSTVerified ? '#109856' : '#ef4444' }}>
+                  {trustScore}%
+                </span>
               </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="bg-white rounded-xl p-3 text-center border" style={{ borderColor: '#b0dfc4' }}>
-                  <p className="text-xs text-[#6A737D] font-semibold uppercase tracking-wider">Company age</p>
-                  <p className="text-lg font-bold text-[#030D1E] mt-1">{trustResult.companyAge} yrs</p>
+
+              {isGSTVerified && typeof mca === 'object' && (
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-white rounded-xl p-3 text-center border" style={{ borderColor: '#b0dfc4' }}>
+                    <p className="text-xs text-[#6A737D] font-semibold uppercase tracking-wider">Company age</p>
+                    <p className="text-lg font-bold text-[#030D1E] mt-1">{mca.company_age_years} yrs</p>
+                  </div>
+                  <div className="bg-white rounded-xl p-3 text-center border" style={{ borderColor: '#b0dfc4' }}>
+                    <p className="text-xs text-[#6A737D] font-semibold uppercase tracking-wider">Entity</p>
+                    <p className="text-lg font-bold text-[#030D1E] mt-1">{mca.entity_type}</p>
+                  </div>
+                  <div className="bg-white rounded-xl p-3 text-center border" style={{ borderColor: '#b0dfc4' }}>
+                    <p className="text-xs text-[#6A737D] font-semibold uppercase tracking-wider">Status</p>
+                    <p className="text-lg font-bold mt-1 flex items-center justify-center gap-1" style={{ color: '#109856' }}>
+                      <CheckCircle2 className="w-4 h-4" /> {mca.status}
+                    </p>
+                  </div>
                 </div>
-                <div className="bg-white rounded-xl p-3 text-center border" style={{ borderColor: '#b0dfc4' }}>
-                  <p className="text-xs text-[#6A737D] font-semibold uppercase tracking-wider">Tax rating</p>
-                  <p className="text-lg font-bold text-[#030D1E] mt-1">{trustResult.taxRating}</p>
-                </div>
-                <div className="bg-white rounded-xl p-3 text-center border" style={{ borderColor: '#b0dfc4' }}>
-                  <p className="text-xs text-[#6A737D] font-semibold uppercase tracking-wider">Status</p>
-                  <p className="text-lg font-bold mt-1 flex items-center justify-center gap-1" style={{ color: '#109856' }}>
-                    <CheckCircle2 className="w-4 h-4" /> {trustResult.registrationStatus}
+              )}
+
+              {/* Gemini AI Analysis */}
+              {gstTrustData.details?.layer_2_gemini && (
+                <div className="mt-4 p-4 rounded-xl bg-white/70 border border-gray-100">
+                  <p className="text-xs font-bold text-[#6A737D] uppercase tracking-wider mb-2">Gemini AI Analysis</p>
+                  <p className="text-sm text-[#030D1E] leading-relaxed whitespace-pre-wrap">
+                    {typeof gstTrustData.details.layer_2_gemini === 'string'
+                      ? gstTrustData.details.layer_2_gemini.slice(0, 500)
+                      : JSON.stringify(gstTrustData.details.layer_2_gemini)}
                   </p>
                 </div>
-              </div>
+              )}
+
+              {/* MCA21 Matched Badge */}
+              {isGSTVerified && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.2 }}
+                  className="mt-4 flex items-center gap-2 px-4 py-2 rounded-full w-fit mx-auto"
+                  style={{ backgroundColor: '#109856', color: '#FFFFFF' }}
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span className="text-sm font-bold">MCA21 Matched — {mca?.entity_name}</span>
+                </motion.div>
+              )}
             </motion.div>
           )}
         </motion.div>
@@ -145,7 +215,16 @@ const CompanySection = () => {
           <h3 className="text-2xl font-bold text-[#030D1E] mb-6 flex items-center gap-2">
             <FileText className="w-6 h-6 text-[#FF8131]" /> Create trust offer
           </h3>
-          <form className="flex flex-col gap-4" onSubmit={handleCreateOffer}>
+
+          {/* GST gate */}
+          {!isGSTVerified && (
+            <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800 mb-6">
+              <AlertTriangle className="w-5 h-5 mt-0.5 shrink-0" />
+              <p>Complete the <span className="font-bold">3-Layer Trust Check</span> first to unlock offer creation.</p>
+            </div>
+          )}
+
+          <form className={`flex flex-col gap-4 ${!isGSTVerified ? 'opacity-50 pointer-events-none' : ''}`} onSubmit={handleCreateOffer}>
             <div>
               <label className="text-sm font-semibold text-[#6A737D] mb-1 block">Job title</label>
               <input
@@ -184,8 +263,19 @@ const CompanySection = () => {
               </p>
             </div>
 
-            <button type="submit" className="mt-2 bg-[#FF8131] text-white py-4 rounded-full font-bold text-lg hover:bg-[#E06D22] transition-colors shadow-lg cursor-pointer border-none flex items-center justify-center gap-2">
-              <Send className="w-5 h-5" /> Generate trust offer
+            <button
+              type="submit"
+              className={`mt-2 py-4 rounded-full font-bold text-lg transition-colors shadow-lg cursor-pointer border-none flex items-center justify-center gap-2 ${
+                offerCreated
+                  ? 'bg-[#109856] text-white'
+                  : 'bg-[#FF8131] text-white hover:bg-[#E06D22]'
+              }`}
+            >
+              {offerCreated ? (
+                <><CheckCircle2 className="w-5 h-5" /> Offer created</>
+              ) : (
+                <><Send className="w-5 h-5" /> Generate trust offer</>
+              )}
             </button>
           </form>
 

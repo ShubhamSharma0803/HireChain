@@ -1,27 +1,14 @@
-import React, { useState } from 'react';
+import React, { useContext } from 'react';
 import { motion } from 'framer-motion';
 import { Link as LinkIcon, Wallet, Fingerprint } from 'lucide-react';
+import { AppContext } from '../App';
 
 const Navbar = () => {
-  const [walletAddress, setWalletAddress] = useState('');
-  const [kycDone, setKycDone] = useState(false);
-
-  const connectWallet = async () => {
-    if (window.ethereum) {
-      try {
-        const accs = await window.ethereum.request({ method: 'eth_requestAccounts' });
-        if (accs.length) setWalletAddress(accs[0]);
-      } catch (e) {
-        console.error(e);
-      }
-    } else {
-      alert('Please install MetaMask!');
-    }
-  };
+  const { userWallet, connectWallet, isAadhaarVerified, addToast } = useContext(AppContext);
 
   const handleKYC = () => {
-    alert('Aadhaar KYC via Signzy / Surepass will open in a new window.');
-    setKycDone(true);
+    addToast('Aadhaar KYC via Signzy / Surepass — scroll to the Candidate section below.', 'success');
+    document.getElementById('candidate')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const fmt = (a) => `${a.slice(0, 6)}…${a.slice(-4)}`;
@@ -62,13 +49,13 @@ const Navbar = () => {
           whileTap={{ scale: 0.97 }}
           onClick={handleKYC}
           className={`hidden sm:flex items-center gap-2 text-sm font-bold px-4 py-2.5 rounded-full transition-colors border-2 cursor-pointer ${
-            kycDone
+            isAadhaarVerified
               ? 'bg-green-50 border-green-400 text-green-700'
               : 'bg-white border-[#030D1E] text-[#030D1E] hover:bg-gray-50'
           }`}
         >
           <Fingerprint className="w-4 h-4" />
-          {kycDone ? 'KYC verified' : 'Aadhaar KYC'}
+          {isAadhaarVerified ? 'KYC verified' : 'Aadhaar KYC'}
         </motion.button>
 
         {/* Connect Wallet */}
@@ -79,7 +66,7 @@ const Navbar = () => {
           className="flex items-center gap-2 bg-[#FF8131] text-white text-sm font-bold px-5 py-2.5 rounded-full hover:bg-[#E06D22] transition-colors shadow-lg shadow-orange-500/20 cursor-pointer border-none"
         >
           <Wallet className="w-4 h-4" />
-          {walletAddress ? fmt(walletAddress) : 'Connect Wallet'}
+          {userWallet ? fmt(userWallet) : 'Connect Wallet'}
         </motion.button>
       </div>
     </motion.nav>

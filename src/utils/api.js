@@ -1,104 +1,111 @@
 import axios from 'axios';
 
+/* ── Axios instance pointing to Shubham's FastAPI server ──── */
 const api = axios.create({
   baseURL: 'http://localhost:8000',
-  timeout: 15000,
+  timeout: 30000,
+  headers: { 'Content-Type': 'application/json' },
 });
 
-/* ── GST Verification ─────────────────────────────────────── */
+/* ── Health Check ─────────────────────────────────────────── */
+export const healthCheck = async () => {
+  const res = await api.get('/');
+  return res.data;
+};
+
+/* ── Contract Status ──────────────────────────────────────── */
+export const getContractStatus = async () => {
+  const res = await api.get('/contract-status');
+  return res.data;
+};
+
+/* ── GST + MCA21 3-Layer Trust Check ──────────────────────── */
+/* Maps to POST /verify-company { gst_number }
+   Returns { status: bool, trust_score: int, details: {...} } */
 export const verifyGST = async (gstNumber) => {
   try {
-    const res = await api.post('/verify-gst', { gstNumber });
+    const res = await api.post('/verify-company', { gst_number: gstNumber });
     return res.data;
   } catch (err) {
-    console.error('GST verification failed:', err);
-    throw err;
+    if (err.response?.data?.detail) {
+      throw new Error(err.response.data.detail);
+    }
+    throw new Error('GST verification failed — is the backend running on :8000?');
   }
 };
 
-/* ── MCA21 Company Registration Cross-Check ───────────────── */
-export const verifyMCA21 = async (cin) => {
+/* ── Candidate Aadhaar + DigiLocker Verification ──────────── */
+/* Maps to POST /verify-candidate { aadhaar_hash, digilocker_access_token }
+   Returns { status: bool, trust_score: int, details: {...} } */
+export const verifyCandidate = async (aadhaarHash, digilockerToken) => {
   try {
-    const res = await api.post('/verify-mca21', { cin });
-    return res.data; // { companyAge, taxHistory, registrationStatus }
-  } catch (err) {
-    console.error('MCA21 verification failed:', err);
-    throw err;
-  }
-};
-
-/* ── MCA21 Email Confirmation (Work History) ──────────────── */
-export const verifyWorkHistory = async (email, companyDomain) => {
-  try {
-    const res = await api.post('/verify-work-history', { email, companyDomain });
-    return res.data; // { verified: true/false, domain, timestamp }
-  } catch (err) {
-    console.error('Work-history verification failed:', err);
-    throw err;
-  }
-};
-
-/* ── DigiLocker OAuth ─────────────────────────────────────── */
-export const initiateDigiLockerOAuth = async () => {
-  try {
-    const res = await api.get('/digilocker/auth-url');
-    return res.data; // { authUrl }
-  } catch (err) {
-    console.error('DigiLocker OAuth initiation failed:', err);
-    throw err;
-  }
-};
-
-export const fetchDigiLockerCertificates = async (oauthCode) => {
-  try {
-    const res = await api.post('/digilocker/certificates', { oauthCode });
-    return res.data; // { certificates: [{ name, issuer, date }] }
-  } catch (err) {
-    console.error('DigiLocker certificate fetch failed:', err);
-    throw err;
-  }
-};
-
-/* ── Aadhaar KYC (Signzy / Surepass) ─────────────────────── */
-export const initiateAadhaarKYC = async (walletAddress) => {
-  try {
-    const res = await api.post('/aadhaar/initiate', { walletAddress });
-    return res.data; // { sessionId, redirectUrl }
-  } catch (err) {
-    console.error('Aadhaar KYC initiation failed:', err);
-    throw err;
-  }
-};
-
-export const verifyAadhaarOTP = async (sessionId, otp) => {
-  try {
-    const res = await api.post('/aadhaar/verify-otp', { sessionId, otp });
-    return res.data; // { identityHash, verified: true }
-  } catch (err) {
-    console.error('Aadhaar OTP verification failed:', err);
-    throw err;
-  }
-};
-
-/* ── AI Consistency Score (Claude) ────────────────────────── */
-export const getAIConsistencyScore = async (resumeData) => {
-  try {
-    const res = await api.post('/ai/consistency-score', { resumeData });
-    return res.data; // { score, warnings: [...], analysis }
-  } catch (err) {
-    console.error('AI consistency scoring failed:', err);
-    throw err;
-  }
-};
-
-/* ── Degree Verification ──────────────────────────────────── */
-export const verifyDegree = async (degreeBase64, candidateWallet) => {
-  try {
-    const res = await api.post('/verify-degree', { degreeBase64, candidateWallet });
+    const res = await api.post('/verify-candidate', {
+      aadhaar_hash: aadhaarHash,
+      digilocker_access_token: digilockerToken,
+    });
     return res.data;
   } catch (err) {
-    console.error('Degree verification failed:', err);
-    throw err;
+    if (err.response?.data?.detail) {
+      throw new Error(err.response.data.detail);
+    }
+    throw new Error('Candidate verification failed.');
+  }
+};
+
+/* ── AI Resume Logic Check (Gemini) ───────────────────────── */
+/* Maps to POST /check-resume-logic { resume_text }
+   Returns { status: bool, trust_score: int, details: {...} } */
+export const checkResumeLogic = async (resumeText) => {
+  try {
+    const res = await api.post('/check-resume-logic', { resume_text: resumeText });
+    return res.data;
+  } catch (err) {
+    if (err.response?.data?.detail) {
+      throw new Error(err.response.data.detail);
+    }
+    throw new Error('Resume analysis failed.');
+  }
+};
+
+/* ── File-based degree verification (reads file → sends text) */
+export const verifyDegree = async (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const text = e.target.result;
+        const result = await checkResumeLogic(text);
+        resolve(result);
+      } catch (err) {
+        reject(err);
+      }
+    };
+    reader.onerror = () => reject(new Error('File read failed'));
+    reader.readAsText(file);
+  });
+};
+
+/* ── Submit Offer (backend validation) ────────────────────── */
+export const submitOffer = async (offerData) => {
+  try {
+    const res = await api.post('/submit-offer', offerData);
+    return res.data;
+  } catch (err) {
+    if (err.response?.data?.detail) {
+      throw new Error(err.response.data.detail);
+    }
+    throw new Error('Offer submission failed.');
+  }
+};
+
+/* ── Breach Registry Fetch ────────────────────────────────── */
+export const fetchBreachRegistry = async () => {
+  try {
+    const res = await api.get('/breach-registry');
+    return res.data;
+  } catch {
+    // Backend may not have this endpoint yet — return empty fallback
+    return { entries: [] };
   }
 };
 
