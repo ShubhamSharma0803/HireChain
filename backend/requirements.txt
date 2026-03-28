@@ -4,3 +4,6 @@ google-genai
 python-dotenv
 pillow
 web3
+supabase
+python-jose[cryptography]
+passlib[bcrypt]
