@@ -6,7 +6,7 @@ import {
   Brain, CheckCircle2, AlertTriangle, Award,
   Loader2, Upload,
 } from 'lucide-react';
-import { checkResumeLogic } from '../utils/api';
+import { checkResumeLogic, verifyResumePDF } from '../utils/api';
 import { AppContext } from '../App';
 import { getOffer, acceptOffer, confirmJoining, reportBreach } from '../utils/contract';
 import OfferCard from './OfferCard';
@@ -146,28 +146,20 @@ const CandidateSection = () => {
     setResumeLoading(true);
     setResumeResult(null);
 
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      try {
-        const text = ev.target.result;
-        const result = await checkResumeLogic(text);
-        setResumeResult(result);
-        if (result.status) {
-          addToast(`Vector clean. Match: ${result.trust_score}%`, 'success');
-        } else {
-          addToast(`Anomaly flag. Match: ${result.trust_score}%`, 'error');
-        }
-      } catch (err) {
-        addToast(err.message || 'Analysis failed.', 'error');
-      } finally {
-        setResumeLoading(false);
+    try {
+      // Direct PDF upload to the new AI-powered backend endpoint
+      const result = await verifyResumePDF(file);
+      setResumeResult(result);
+      if (result.status) {
+        addToast(`Vector clean. Match: ${result.trust_score}%`, 'success');
+      } else {
+        addToast(`Anomaly flag. Match: ${result.trust_score}%`, 'error');
       }
-    };
-    reader.onerror = () => {
-      addToast('I/O error.', 'error');
+    } catch (err) {
+      addToast(err.message || 'Analysis failed.', 'error');
+    } finally {
       setResumeLoading(false);
-    };
-    reader.readAsText(file);
+    }
   };
 
   return (
@@ -331,12 +323,14 @@ const CandidateSection = () => {
                         </span>
                       </div>
                       <TrustProgress score={resumeResult.trust_score} color={resumeResult.status ? '#FFFFFF' : 'rgba(255,255,255,0.4)'} />
-                      {resumeResult.details?.ai_full_analysis && (
+                      {resumeResult.details && (
                         <div className="mt-8 p-5 rounded-lg bg-black/20 border border-white/10">
                           <p className="editorial-label opacity-70 mb-3 text-white">Vector Analysis</p>
-                          <p className="text-[17px] leading-relaxed text-white/80">
-                            {resumeResult.details.ai_full_analysis.slice(0, 300)}...
-                          </p>
+                          <div className="space-y-3">
+                            {resumeResult.details.layer_1_logic && <p className="text-[17px] leading-relaxed text-white/80">• {resumeResult.details.layer_1_logic}</p>}
+                            {resumeResult.details.layer_2_skills && <p className="text-[17px] leading-relaxed text-white/80">• {resumeResult.details.layer_2_skills}</p>}
+                            {resumeResult.details.layer_3_overall && <p className="text-[17px] leading-relaxed text-white/80">• {resumeResult.details.layer_3_overall}</p>}
+                          </div>
                         </div>
                       )}
                     </div>
