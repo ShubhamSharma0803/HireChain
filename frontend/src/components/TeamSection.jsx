@@ -38,8 +38,8 @@ const TeamSection = () => {
       
       {/* Ambient Orbs for Glassmorphism Refraction */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-[1200px] h-[800px] pointer-events-none z-0">
-        <div className="absolute top-10 left-20 w-[500px] h-[500px] bg-[#FF8131] rounded-full filter blur-[140px] opacity-10 animate-pulse"></div>
-        <div className="absolute bottom-10 right-20 w-[500px] h-[500px] bg-[#3A4A40] rounded-full filter blur-[140px] opacity-10 animate-pulse" style={{ animationDelay: '2s' }}></div>
+        <div className="absolute top-10 left-20 w-[500px] h-[500px] bg-[#5227FF] rounded-full filter blur-[140px] opacity-10 animate-pulse"></div>
+        <div className="absolute bottom-10 right-20 w-[500px] h-[500px] bg-[#1e1b4b] rounded-full filter blur-[140px] opacity-10 animate-pulse" style={{ animationDelay: '2s' }}></div>
       </div>
 
       {/* Team Grid */}
@@ -61,13 +61,13 @@ const TeamSection = () => {
             <motion.div
               variants={item}
               key={i}
-              className="editorial-card-interactive p-10 flex flex-col items-start justify-center text-left relative overflow-hidden bg-white/40 backdrop-blur-2xl border border-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.04)] shadow-inner rounded-[24px]"
+              className="editorial-card-interactive p-10 flex flex-col items-start justify-center text-left relative overflow-hidden bg-black/40 backdrop-blur-2xl border border-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.04)] shadow-inner rounded-[24px]"
             >
               {/* Subtle glass reflection highlight */}
               <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/80 to-transparent pointer-events-none" />
 
               <div className="relative mb-8">
-                <div className="absolute inset-0 bg-gradient-to-br from-[#FF8131] to-[#3A4A40] rounded-full blur-md opacity-20 translate-y-2"></div>
+                <div className="absolute inset-0 bg-gradient-to-br from-[#5227FF] to-[#1e1b4b] rounded-full blur-md opacity-20 translate-y-2"></div>
                 <img 
                   src={member.image} 
                   alt={member.name} 
@@ -75,13 +75,7 @@ const TeamSection = () => {
                 />
               </div>
               <h3 className="text-2xl font-semibold tracking-tight text-[var(--text-primary)] mb-1">{member.name}</h3>
-              <p className="text-[19px] text-[var(--text-secondary)] mb-8">{member.role}</p>
-
-              <div className="flex items-center gap-4 mt-auto">
-                <a href={member.links.github} className="editorial-label text-[19px] hover:text-[var(--text-primary)] transition-colors">GH</a>
-                <a href={member.links.linkedin} className="editorial-label text-[19px] hover:text-[var(--text-primary)] transition-colors">IN</a>
-                <a href={member.links.twitter} className="editorial-label text-[19px] hover:text-[var(--text-primary)] transition-colors">TW</a>
-              </div>
+              <p className="text-[19px] text-[var(--text-secondary)]">{member.role}</p>
             </motion.div>
           ))}
         </motion.div>

@@ -180,7 +180,7 @@ const CompanySection = () => {
                           <label className="editorial-label block mb-3">GST Number / Signature</label>
                           <input
                             type="text" value={gst} onChange={(e) => setGst(e.target.value)} required
-                            className="w-full editorial-input font-mono uppercase tracking-wider bg-black/20 border-white/20 !text-black !placeholder-black/60 focus:border-white focus:bg-black/40 backdrop-blur-md transition-all"
+                            className="w-full editorial-input font-mono uppercase tracking-wider bg-black/20 border-white/20 !text-white !placeholder-white/40 focus:border-white focus:bg-black/40 backdrop-blur-md transition-all"
                             placeholder="22AAAAA0000A1Z5"
                           />
                         </div>
@@ -261,14 +261,14 @@ const CompanySection = () => {
                             <label className="editorial-label block mb-3">Target Profile Title</label>
                             <input
                               type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required
-                              className="w-full editorial-input bg-black/20 border-white/20 !text-black !placeholder-black/60 focus:border-white focus:bg-black/40 backdrop-blur-md transition-all" placeholder="Protocol Engineer"
+                              className="w-full editorial-input bg-black/20 border-white/20 !text-white !placeholder-white/40 focus:border-white focus:bg-black/40 backdrop-blur-md transition-all" placeholder="Protocol Engineer"
                             />
                           </div>
                           <div>
                             <label className="editorial-label block mb-3">Destination Address</label>
                             <input
                               type="text" value={form.wallet} onChange={(e) => setForm({ ...form, wallet: e.target.value })} required
-                              className="w-full editorial-input font-mono tracking-wider text-base bg-black/20 border-white/20 !text-black !placeholder-black/60 focus:border-white focus:bg-black/40 backdrop-blur-md transition-all" placeholder="0x..."
+                              className="w-full editorial-input font-mono tracking-wider text-base bg-black/20 border-white/20 !text-white !placeholder-white/40 focus:border-white focus:bg-black/40 backdrop-blur-md transition-all" placeholder="0x..."
                             />
                           </div>
                           <div>
@@ -280,7 +280,7 @@ const CompanySection = () => {
                               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[18px] font-semibold text-white/50">$</span>
                               <input
                                 type="number" min={ESCROW_FLOOR} value={form.salary} onChange={(e) => setForm({ ...form, salary: e.target.value })} required
-                                className="w-full pl-9 editorial-input bg-black/20 border-white/20 !text-black !placeholder-black/60 focus:border-white focus:bg-black/40 backdrop-blur-md transition-all" placeholder={ESCROW_FLOOR.toString()}
+                                className="w-full pl-9 editorial-input bg-black/20 border-white/20 !text-white !placeholder-white/40 focus:border-white focus:bg-black/40 backdrop-blur-md transition-all" placeholder={ESCROW_FLOOR.toString()}
                               />
                             </div>
                           </div>

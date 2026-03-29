@@ -6,7 +6,6 @@ const fallbackData = [
   { wallet: '0x1a2b…9c3d', entity: 'Candidate', breaches: 1, flags: 1, status: 'Active',   delay: '28 days left', priorRelationship: false },
   { wallet: '0x4e5f…8a1b', entity: 'Company',   breaches: 3, flags: 3, status: 'Frozen',   delay: 'Frozen',       priorRelationship: true },
   { wallet: '0x7c8d…2e4f', entity: 'Candidate', breaches: 2, flags: 2, status: 'Warned',   delay: '12 days left', priorRelationship: false },
-  { wallet: '0xab12…de34', entity: 'Company',   breaches: 1, flags: 1, status: 'Active',   delay: '30 days left', priorRelationship: true },
 ];
 
 const container = {
@@ -21,23 +20,7 @@ const item = {
 
 const RegistrySection = () => {
   const [registryData, setRegistryData] = useState(fallbackData);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const loadRegistry = async () => {
-      try {
-        const data = await fetchBreachRegistry();
-        if (data.entries && data.entries.length > 0) {
-          setRegistryData(data.entries);
-        }
-      } catch {
-        // Fallback
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadRegistry();
-  }, []);
+  const [loading, setLoading] = useState(false);
 
   return (
     <section id="registry" className="relative py-32 px-6 md:px-12 max-w-[1200px] mx-auto w-full z-10">
@@ -66,32 +49,32 @@ const RegistrySection = () => {
             <motion.div
               variants={item}
               key={i}
-              className="editorial-card-interactive editorial-card p-8 flex flex-col justify-between"
+              className="editorial-card-interactive p-8 flex flex-col justify-between bg-white rounded-2xl border border-black/5 shadow-lg"
             >
               <div className="flex items-start justify-between mb-8">
                 <div>
-                  <p className="editorial-label mb-2 opacity-50">Entity Trace</p>
-                  <p className="font-mono text-[var(--text-primary)] tracking-wider font-semibold text-[17px]">{row.wallet}</p>
+                  <p className="editorial-label mb-2 text-black/50">Entity Trace</p>
+                  <p className="font-mono text-black tracking-wider font-semibold text-[17px]">{row.wallet}</p>
                 </div>
-                <div className={`w-2.5 h-2.5 rounded-full ${row.status === 'Frozen' ? 'bg-red-500' : 'bg-[var(--accent-color)]'}`} />
+                <div className={`w-2.5 h-2.5 rounded-full ${row.status === 'Frozen' ? 'bg-red-500' : 'bg-[#5227FF]'}`} />
               </div>
 
               <div className="grid grid-cols-2 gap-y-6 gap-x-4">
                 <div>
-                  <p className="editorial-label mb-1.5 opacity-40">Class</p>
-                  <p className="text-[17px] text-[var(--text-primary)]">{row.entity}</p>
+                  <p className="editorial-label mb-1.5 text-black/40">Class</p>
+                  <p className="text-[17px] text-black font-medium">{row.entity}</p>
                 </div>
                 <div>
-                  <p className="editorial-label mb-1.5 opacity-40">State</p>
-                  <p className="text-[17px] text-[var(--text-primary)]">{row.status}</p>
+                  <p className="editorial-label mb-1.5 text-black/40">State</p>
+                  <p className="text-[17px] text-black font-medium">{row.status}</p>
                 </div>
                 <div>
-                  <p className="editorial-label mb-1.5 opacity-40">Strikes</p>
-                  <p className="text-[17px] font-semibold text-[var(--text-primary)]">{row.flags} / 3</p>
+                  <p className="editorial-label mb-1.5 text-black/40">Strikes</p>
+                  <p className="text-[17px] font-bold text-black">{row.flags} / 3</p>
                 </div>
                 <div>
-                  <p className="editorial-label mb-1.5 opacity-40">Epoch Window</p>
-                  <p className="text-[17px] font-mono text-[var(--text-secondary)]">{row.delay}</p>
+                  <p className="editorial-label mb-1.5 text-black/40">Epoch Window</p>
+                  <p className="text-[17px] font-mono text-black/60">{row.delay}</p>
                 </div>
               </div>
             </motion.div>

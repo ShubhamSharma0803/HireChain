@@ -12,14 +12,12 @@ import TeamSection from './components/TeamSection';
 import Toast from './components/Toast';
 import Unveil from './components/Unveil';
 import AuthModal from './components/AuthModal';
-import Balatro from './components/Balatro';
-import Ribbons from './components/Ribbons';
+import DotGrid from './components/DotGrid';
 
 /* ── Global App Context ───────────────────────────────────── */
 export const AppContext = createContext(null);
 
 function App() {
-  /* ── Auth State ─────────────────────────────────────────── */
   const [authToken, setAuthToken] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUnveil, setShowUnveil] = useState(true);
@@ -86,7 +84,7 @@ function App() {
 
   return (
     <AppContext.Provider value={ctx}>
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {showUnveil && (
           <Unveil key="unveil" onComplete={() => setShowUnveil(false)} />
         )}
@@ -95,44 +93,26 @@ function App() {
         )}
       </AnimatePresence>
 
-      {/* Strict Background color explicitly set by UI rules */}
-      <div className={`relative min-h-screen bg-[var(--bg-color)] text-[var(--text-primary)] ${showUnveil ? 'h-screen overflow-hidden' : ''}`}>
-        
-        {/* Fullscreen Fixed Floating Background */}
-        <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden opacity-60">
-          <Balatro 
-            color1="#FF8131"
-            color2="#FAFAFA"
-            color3="#E5E5E5"
-            spinSpeed={3.0}
-            spinEase={0.8}
-            contrast={1.8}
-            lighting={0.6}
-            pixelFilter={1200.0}
-          />
-        </div>
+      {/* Dynamic DotGrid Background Logic */}
+      <DotGrid 
+        baseColor="#1e1b4b" 
+        activeColor="#5227FF" 
+        dotSize={2}
+        gap={38}
+        proximity={200}
+      />
 
-        {/* Global Interactive Ribbon Cursor Overlay */}
-        <div className="fixed inset-0 z-[100] pointer-events-none overflow-hidden">
-          <Ribbons 
-            colors={['#5227FF']} 
-            baseThickness={25} 
-            maxAge={400} 
-            pointCount={50} 
-            speedMultiplier={0.7}
-          />
-        </div>
-
-        {/* Core Layout Structure */}
+      {/* Core Layout Structure */}
+      <div className={`relative z-10 min-h-screen text-[var(--text-primary)] ${showUnveil ? 'h-screen overflow-hidden' : ''}`}>
         <div className="relative z-10 w-full flex flex-col">
           <Navbar />
           <Hero />
-        <BreakawayHeading />
-        <CompanySection />
-        <CandidateSection />
-        <Ticker />
-        <RegistrySection />
-        <TeamSection />
+          <BreakawayHeading />
+          <CompanySection />
+          <CandidateSection />
+          <Ticker />
+          <RegistrySection />
+          <TeamSection />
         </div>
       </div>
 

@@ -6,7 +6,7 @@ import CardNav from './CardNav';
 const navItems = [
   {
     label: 'Platform',
-    bgColor: '#FF8131',
+    bgColor: '#5227FF',
     textColor: '#fff',
     links: [
       { label: 'Company Hub', href: '#company' },
